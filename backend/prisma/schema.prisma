@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  company       String?
+  phone         String?
+  logo          String?
+  
+  planId        String?
+  plan          Plan?     @relation(fields: [planId], references: [id])
+  
+  subscriptionId     String?   @unique
+  subscriptionStatus String?   @default("inactive")
+  subscriptionEndsAt DateTime?
+  
+  quotesThisMonth    Int       @default(0)
+  quotesResetAt      DateTime  @default(now())
+  
+  clients       Client[]
+  quotes        Quote[]
+  payments      Payment[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("users")
+}
+
+model Plan {
+  id              String    @id @default(uuid())
+  name            String    @unique
+  price           Decimal   @db.Decimal(10, 2)
+  quotesLimit     Int       // -1 para ilimitado
+  hasWatermark    Boolean   @default(false)
+  features        Json      // Array de features em JSON
+  stripePriceId   String?   @unique
+  
+  users           User[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("plans")
+}
+
+model Client {
+  id          String    @id @default(uuid())
+  name        String
+  email       String?
+  phone       String?
+  document    String?   // CPF/CNPJ
+  address     String?
+  city        String?
+  state       String?
+  zipCode     String?
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  quotes      Quote[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("clients")
+}
+
+model Quote {
+  id              String      @id @default(uuid())
+  title           String
+  description     String?
+  status          String      @default("pending") // pending, approved, rejected
+  
+  // Dados do orçamento
+  items           Json        // Array de itens em JSON
+  subtotal        Decimal     @db.Decimal(10, 2)
+  discount        Decimal     @db.Decimal(10, 2) @default(0)
+  tax             Decimal     @db.Decimal(10, 2) @default(0)
+  total           Decimal     @db.Decimal(10, 2)
+  
+  notes           String?
+  termsConditions String?
+  
+  validUntil      DateTime?
+  
+  // Controle de visualização pública
+  publicToken     String      @unique @default(uuid())
+  viewCount       Int         @default(0)
+  
+  // Relacionamentos
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  clientId        String
+  client          Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@map("quotes")
+}
+
+model Payment {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripePaymentId     String?   @unique
+  stripeSessionId     String?   @unique
+  
+  amount              Decimal   @db.Decimal(10, 2)
+  currency            String    @default("BRL")
+  status              String    // pending, completed, failed
+  
+  planName            String
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  @@map("payments")
+}

@@ -1,0 +1,29 @@
+{
+  "name": "aligned-proposals",
+  "version": "1.0.0",
+  "description": "Sistema SaaS de orçamentos e propostas comerciais",
+  "scripts": {
+    "setup": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start",
+    "build:frontend": "cd frontend && npm run build",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:migrate": "cd backend && npx prisma migrate dev",
+    "prisma:studio": "cd backend && npx prisma studio",
+    "seed:plans": "echo 'Acesse http://localhost:5000/api/plans/seed no navegador'"
+  },
+  "keywords": [
+    "saas",
+    "quotes",
+    "proposals",
+    "react",
+    "nodejs",
+    "tailwind"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seu-usuario/aligned-proposals"
+  }
+}
