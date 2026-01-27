@@ -32,6 +32,7 @@ model User {
   clients       Client[]
   quotes        Quote[]
   payments      Payment[]
+  products      Product[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -66,6 +67,7 @@ model Client {
   city        String?
   state       String?
   zipCode     String?
+  status      Int       @default(1) // 1 = ativo, -3 = inativo/deletado
   
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -83,6 +85,7 @@ model Quote {
   title           String
   description     String?
   status          String      @default("pending") // pending, approved, rejected
+  deletionStatus  Int         @default(1) // 1 = ativo, -3 = inativo/deletado
   
   // Dados do orçamento
   items           Json        // Array de itens em JSON
@@ -131,4 +134,43 @@ model Payment {
   updatedAt           DateTime  @updatedAt
   
   @@map("payments")
+}
+
+model Product {
+  id                    String    @id @default(uuid())
+  name                  String
+  description           String?
+  
+  // Matérias-primas (array de objetos: {name, cost})
+  rawMaterials          Json      @default("[]")
+  
+  // Tempo de produção
+  productionTimeHours   Decimal   @db.Decimal(10, 2) @default(0)
+  
+  // Energia elétrica
+  energyConsumptionKwh  Decimal   @db.Decimal(10, 2) @default(0)
+  energyCostPerKwh      Decimal   @db.Decimal(10, 2) @default(0)
+  
+  // Mão de obra
+  laborCostPerHour      Decimal   @db.Decimal(10, 2) @default(0)
+  
+  // Despesas fixas e variáveis (array de objetos: {name, cost, type})
+  expenses              Json      @default("[]")
+  
+  // Margem de lucro desejada (%)
+  profitMargin          Decimal   @db.Decimal(5, 2) @default(0)
+  
+  // Valores calculados (podem ser armazenados para facilitar consultas)
+  totalProductionCost   Decimal?  @db.Decimal(10, 2)
+  minimumSalePrice      Decimal?  @db.Decimal(10, 2)
+  idealSalePrice        Decimal?  @db.Decimal(10, 2)
+  
+  // Relacionamento com o usuário
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@map("products")
 }

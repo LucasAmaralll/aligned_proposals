@@ -21,6 +21,7 @@ class ClientController {
           city,
           state,
           zipCode,
+          status: 1,
           userId: req.userId
         }
       });
@@ -38,6 +39,7 @@ class ClientController {
 
       const where = {
         userId: req.userId,
+        status: 1, // Apenas clientes ativos
         ...(search && {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -84,7 +86,8 @@ class ClientController {
       const client = await prisma.client.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          status: 1 // Apenas clientes ativos
         },
         include: {
           quotes: {
@@ -110,11 +113,12 @@ class ClientController {
       const { id } = req.params;
       const { name, email, phone, document, address, city, state, zipCode } = req.body;
 
-      // Verificar se cliente pertence ao usuário
+      // Verificar se cliente pertence ao usuário e está ativo
       const clientExists = await prisma.client.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          status: 1 // Apenas clientes ativos
         }
       });
 
@@ -147,11 +151,12 @@ class ClientController {
     try {
       const { id } = req.params;
 
-      // Verificar se cliente pertence ao usuário
+      // Verificar se cliente pertence ao usuário e está ativo
       const clientExists = await prisma.client.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          status: 1 // Apenas clientes ativos
         }
       });
 
@@ -159,14 +164,22 @@ class ClientController {
         return res.status(404).json({ error: 'Cliente não encontrado' });
       }
 
-      await prisma.client.delete({
-        where: { id }
+      // Soft delete em cascata: marcar todos os orçamentos do cliente como inativos
+      await prisma.quote.updateMany({
+        where: { clientId: id },
+        data: { deletionStatus: -3 }
       });
 
-      return res.json({ message: 'Cliente excluído com sucesso' });
+      // Soft delete: marcar cliente como inativo (LGPD)
+      await prisma.client.update({
+        where: { id },
+        data: { status: -3 }
+      });
+
+      return res.json({ message: 'Cliente inativado com sucesso' });
     } catch (error) {
-      console.error('Erro ao excluir cliente:', error);
-      return res.status(500).json({ error: 'Erro ao excluir cliente' });
+      console.error('Erro ao inativar cliente:', error);
+      return res.status(500).json({ error: 'Erro ao inativar cliente' });
     }
   }
 }

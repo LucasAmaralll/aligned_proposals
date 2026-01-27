@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const userController = require('../controllers/user.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { canAccessDashboard } = require('../middlewares/permissions.middleware');
 
 const router = express.Router();
 
@@ -41,6 +42,8 @@ router.patch('/password', userController.updatePassword);
 router.patch('/logo', upload.single('logo'), userController.uploadLogo);
 router.delete('/account', userController.deleteAccount);
 router.post('/upgrade', userController.upgradePlan);
-router.get('/stats', userController.getStats);
+
+// Rota de estatísticas requer permissão de dashboard
+router.get('/stats', canAccessDashboard, userController.getStats);
 
 module.exports = router;

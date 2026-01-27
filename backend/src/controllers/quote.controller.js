@@ -69,6 +69,7 @@ class QuoteController {
         data: {
           title,
           description: description || '',
+          deletionStatus: 1,
           user: {
             connect: { id: req.userId }
           },
@@ -113,6 +114,7 @@ class QuoteController {
 
       const where = {
         userId: req.userId,
+        deletionStatus: 1, // Apenas orçamentos ativos
         ...(status && { status }),
         ...(clientId && { clientId }),
         ...(search && {
@@ -284,11 +286,12 @@ class QuoteController {
     try {
       const { id } = req.params;
 
-      // Verificar se orçamento pertence ao usuário
+      // Verificar se orçamento pertence ao usuário e está ativo
       const quoteExists = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          deletionStatus: 1 // Apenas orçamentos ativos
         }
       });
 
@@ -296,14 +299,16 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
-      await prisma.quote.delete({
-        where: { id }
+      // Soft delete: marcar como inativo (LGPD)
+      await prisma.quote.update({
+        where: { id },
+        data: { deletionStatus: -3 }
       });
 
-      return res.json({ message: 'Orçamento excluído com sucesso' });
+      return res.json({ message: 'Orçamento inativado com sucesso' });
     } catch (error) {
-      console.error('Erro ao excluir orçamento:', error);
-      return res.status(500).json({ error: 'Erro ao excluir orçamento' });
+      console.error('Erro ao inativar orçamento:', error);
+      return res.status(500).json({ error: 'Erro ao inativar orçamento' });
     }
   }
 
@@ -314,7 +319,8 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
@@ -328,14 +334,65 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
-      const pdfBuffer = await pdfService.generateQuotePDF(quote);
+      console.log('📋 Gerando PDF para orçamento:', quote.id);
 
+      // Gerar PDF usando template HTML + Puppeteer
+      const pdfBuffer = await pdfService.generateQuotePDFFromHTML(quote);
+
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('PDF gerado está vazio');
+      }
+
+      console.log('✅ PDF gerado com sucesso, enviando para cliente');
+
+      // Configurar headers corretos para PDF
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=orcamento-${quote.id}.pdf`);
-      res.send(pdfBuffer);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.setHeader('Content-Disposition', `attachment; filename="orcamento-${quote.id.substring(0, 8)}.pdf"`);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      // Enviar buffer binário
+      res.end(pdfBuffer, 'binary');
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
-      return res.status(500).json({ error: 'Erro ao gerar PDF' });
+      console.error('❌ Erro ao gerar PDF:', error);
+      return res.status(500).json({ 
+        error: 'Erro ao gerar PDF',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  async generatePDFHTML(req, res) {
+    try {
+      const { id } = req.params;
+
+      const quote = await prisma.quote.findFirst({
+        where: {
+          id,
+          userId: req.userId,
+          deletionStatus: 1 // Apenas orçamentos ativos
+        },
+        include: {
+          client: true,
+          user: {
+            include: { plan: true }
+          }
+        }
+      });
+
+      if (!quote) {
+        return res.status(404).json({ error: 'Orçamento não encontrado' });
+      }
+
+      const html = pdfService.generateQuotePDFHTML(quote);
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      console.error('Erro ao gerar HTML:', error);
+      return res.status(500).json({ error: 'Erro ao gerar HTML' });
     }
   }
 
@@ -347,7 +404,8 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          userId: req.userId,
+          deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
@@ -361,13 +419,17 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
+      // Gerar PDF usando template HTML + Puppeteer
+      const pdfBuffer = await pdfService.generateQuotePDFFromHTML(quote);
+
       const publicUrl = `${process.env.FRONTEND_URL}/view/${quote.publicToken}`;
       
       await emailService.sendQuoteEmail(
         recipientEmail || quote.client.email,
         quote,
         publicUrl,
-        message
+        message,
+        pdfBuffer
       );
 
       return res.json({ message: 'Email enviado com sucesso' });

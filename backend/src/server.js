@@ -9,6 +9,7 @@ const clientRoutes = require('./routes/client.routes');
 const quoteRoutes = require('./routes/quote.routes');
 const planRoutes = require('./routes/plan.routes');
 const paymentRoutes = require('./routes/payment.routes');
+const productRoutes = require('./routes/product.routes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/products', productRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {
