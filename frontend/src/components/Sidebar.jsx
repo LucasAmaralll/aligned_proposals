@@ -11,7 +11,8 @@ import {
   ArrowRightOnRectangleIcon,
   XMarkIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  CalculatorIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -30,6 +31,7 @@ const Sidebar = () => {
     { name: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
     { name: 'Clientes', icon: UserGroupIcon, path: '/clients' },
     { name: 'Orçamentos', icon: DocumentTextIcon, path: '/quotes' },
+    { name: 'Precificação', icon: CalculatorIcon, path: '/pricing' },
     { name: 'Planos', icon: CreditCardIcon, path: '/plans' },
     { name: 'Perfil', icon: UserCircleIcon, path: '/profile' },
   ];

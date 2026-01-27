@@ -45,17 +45,17 @@ const Dashboard = () => {
   };
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
-    <Card className="hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</p>
-          <p className="text-3xl font-bold text-gray-800 dark:text-white">{value}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
         </div>
         <div className={`w-14 h-14 ${color} rounded-lg flex items-center justify-center`}>
           <Icon className="w-8 h-8 text-white" />
         </div>
       </div>
-    </Card>
+    </div>
   );
 
   if (loading) {
@@ -132,14 +132,16 @@ const Dashboard = () => {
 
           {/* Charts placeholder */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Orçamentos por Status" className="hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Orçamentos por Status</h3>
               <div className="flex items-center justify-center h-64">
                 <ChartBarIcon className="w-16 h-16 text-gray-300 dark:text-gray-600" />
                 <p className="text-gray-400 dark:text-gray-500 ml-4">Gráfico em breve</p>
               </div>
-            </Card>
+            </div>
 
-            <Card title="Atividade Recente" className="hover:shadow-md transition-shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Atividade Recente</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center space-x-3">
@@ -166,7 +168,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         </main>
       </div>

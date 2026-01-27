@@ -22,14 +22,14 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
 
         {/* Modal */}
         <div
-          className={`relative inline-block w-full ${sizes[size]} p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl`}
+          className={`relative inline-block w-full ${sizes[size]} p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-gray-800 shadow-xl rounded-2xl`}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{title}</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
             >
               <XMarkIcon className="w-6 h-6" />
             </button>

@@ -19,6 +19,7 @@ import QuoteDetail from './pages/QuoteDetail';
 import QuoteForm from './pages/QuoteForm';
 import Plans from './pages/Plans';
 import Profile from './pages/Profile';
+import ProductPricing from './pages/ProductPricing';
 
 function App() {
   return (
@@ -108,6 +109,24 @@ function App() {
               element={
                 <PrivateRoute>
                   <Plans />
+                </PrivateRoute>
+              }
+            />
+            
+            {/* Private routes - Pricing */}
+            <Route
+              path="/pricing"
+              element={
+                <PrivateRoute>
+                  <ProductPricing />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/pricing/:id"
+              element={
+                <PrivateRoute>
+                  <ProductPricing />
                 </PrivateRoute>
               }
             />

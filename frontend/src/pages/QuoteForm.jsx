@@ -17,6 +17,7 @@ const QuoteForm = () => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
   const [clients, setClients] = useState([]);
+  const [products, setProducts] = useState([]);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -32,6 +33,7 @@ const QuoteForm = () => {
 
   useEffect(() => {
     loadClients();
+    loadProducts();
     if (isEdit) {
       loadQuote();
     }
@@ -46,6 +48,16 @@ const QuoteForm = () => {
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
       setClients([]);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const response = await api.get('/products');
+      setProducts(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      setProducts([]);
     }
   };
 
@@ -86,6 +98,22 @@ const QuoteForm = () => {
     const newItems = [...formData.items];
     newItems[index][field] = value;
     setFormData({ ...formData, items: newItems });
+  };
+
+  const handleProductSelect = (index, productId) => {
+    if (!productId) return;
+    
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const newItems = [...formData.items];
+      newItems[index] = {
+        ...newItems[index],
+        description: product.name,
+        unitPrice: product.idealSalePrice,
+        productId: product.id
+      };
+      setFormData({ ...formData, items: newItems });
+    }
   };
 
   const addItem = () => {
@@ -285,50 +313,71 @@ const QuoteForm = () => {
                 
                 <div className="space-y-4">
                   {formData.items.map((item, index) => (
-                    <div key={index} className="flex gap-3 items-start">
-                      <div className="flex-1 grid md:grid-cols-3 gap-3">
-                        <div className="md:col-span-3">
+                    <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      {/* Seletor de Produto */}
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Selecionar Produto (opcional)
+                        </label>
+                        <select
+                          value={item.productId || ''}
+                          onChange={(e) => handleProductSelect(index, e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Ou digite manualmente abaixo</option>
+                          {products.map(product => (
+                            <option key={product.id} value={product.id}>
+                              {product.name} - {formatCurrency(product.idealSalePrice)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex gap-3 items-start">
+                        <div className="flex-1 grid md:grid-cols-3 gap-3">
+                          <div className="md:col-span-3">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                              placeholder="Descrição do item *"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              required
+                            />
+                          </div>
                           <input
-                            type="text"
-                            value={item.description}
-                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                            placeholder="Descrição do item *"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            placeholder="Qtd"
+                            min="1"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             required
                           />
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                            placeholder="Valor unitário"
+                            min="0"
+                            step="0.01"
+                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            required
+                          />
+                          <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-semibold">
+                            {formatCurrency((item.quantity || 0) * (item.unitPrice || 0))}
+                          </div>
                         </div>
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          placeholder="Qtd"
-                          min="1"
-                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          required
-                        />
-                        <input
-                          type="number"
-                          value={item.unitPrice}
-                          onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                          placeholder="Valor unitário"
-                          min="0"
-                          step="0.01"
-                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                          required
-                        />
-                        <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-semibold">
-                          {formatCurrency((item.quantity || 0) * (item.unitPrice || 0))}
-                        </div>
+                        {formData.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        )}
                       </div>
-                      {formData.items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
