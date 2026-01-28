@@ -7,8 +7,7 @@ import {
   TrashIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Loading from '../components/Loading';
 import Modal from '../components/Modal';
 import api from '../services/api';
@@ -59,14 +58,8 @@ const Clients = () => {
   );
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+    <Layout title="Clientes">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -206,8 +199,6 @@ const Clients = () => {
               </div>
             )}
           </div>
-        </main>
-      </div>
 
       {/* Delete Modal */}
       <Modal
@@ -244,7 +235,7 @@ const Clients = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </Layout>
   );
 };
 

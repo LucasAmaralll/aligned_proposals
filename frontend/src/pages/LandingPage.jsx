@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  CheckCircleIcon, 
+  CheckIcon,
+  XMarkIcon,
   DocumentTextIcon, 
   ChatBubbleLeftRightIcon,
   EnvelopeIcon,
@@ -39,33 +40,33 @@ const LandingPage = () => {
   const features = [
     {
       icon: DocumentTextIcon,
-      title: 'Orçamentos Profissionais',
-      description: 'Crie orçamentos bonitos em PDF com sua logo e identidade visual'
-    },
-    {
-      icon: ChatBubbleLeftRightIcon,
-      title: 'Envio via WhatsApp',
-      description: 'Envie orçamentos diretamente para o WhatsApp do cliente com um clique'
-    },
-    {
-      icon: EnvelopeIcon,
-      title: 'Email Automático',
-      description: 'Dispare emails profissionais com o orçamento em anexo'
-    },
-    {
-      icon: ChartBarIcon,
-      title: 'Dashboard Completo',
-      description: 'Acompanhe métricas, conversões e performance dos seus orçamentos'
+      title: 'Orçamentos em Segundos',
+      description: 'Pare de perder tempo com planilhas. Preencha campos simples e gere PDFs profissionais automaticamente'
     },
     {
       icon: SparklesIcon,
-      title: 'Página Pública',
-      description: 'Link único para cada orçamento que o cliente pode acessar de qualquer lugar'
+      title: 'Precificação Inteligente',
+      description: 'Não sabe como precificar? Nossa calculadora analisa custos, margem de lucro e sugere preços ideais'
     },
     {
-      icon: CheckCircleIcon,
+      icon: ChartBarIcon,
+      title: 'Controle Total',
+      description: 'Visualize todos os orçamentos em um só lugar. Acompanhe aprovados, pendentes e rejeitados em tempo real'
+    },
+    {
+      icon: CheckIcon,
       title: 'Gestão de Clientes',
-      description: 'Centralize informações dos seus clientes em um só lugar'
+      description: 'Organize seus clientes e histórico de orçamentos sem esforço. Nunca mais perca informações importantes'
+    },
+    {
+      icon: EnvelopeIcon,
+      title: 'Compartilhamento Instantâneo',
+      description: 'Link público para cada orçamento. Seu cliente acessa de qualquer dispositivo, a qualquer hora'
+    },
+    {
+      icon: ChatBubbleLeftRightIcon,
+      title: 'Sua Marca, Sua Identidade',
+      description: 'PDFs com sua logo e cores. Orçamentos profissionais que impressionam e transmitem credibilidade'
     }
   ];
 
@@ -118,15 +119,15 @@ const LandingPage = () => {
       <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-            Crie Orçamentos Profissionais
+            Pare de Fazer Orçamentos à Mão
             <span className="block bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mt-2">
-              em Poucos Minutos
+              Automatize em Segundos
             </span>
           </h2>
           
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-            Simplifique sua gestão comercial com a plataforma completa para criar,
-            enviar e acompanhar orçamentos de forma profissional.
+            Chega de planilhas confusas e cálculos manuais. Preencha campos simples,
+            defina preços com nossa calculadora inteligente e gere PDFs profissionais automaticamente.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -147,7 +148,7 @@ const LandingPage = () => {
           </div>
           
           <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            ✨ Sem cartão de crédito • Comece com 3 orçamentos grátis
+            ✨ Sem cartão de crédito • 3 orçamentos grátis • Precificação inteligente incluída
           </p>
         </div>
       </section>
@@ -157,10 +158,10 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Tudo que você precisa para vender mais
+              Comodidade e Controle Total
             </h3>
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              Recursos poderosos para profissionalizar seu processo comercial
+              Automatize seu processo comercial e pare de perder tempo com tarefas manuais
             </p>
           </div>
           
@@ -243,14 +244,28 @@ const LandingPage = () => {
                       </p>
                       
                       <ul className="space-y-3">
-                        {plan.features.map((feature, fIndex) => (
-                          <li key={fIndex} className="flex items-start gap-2">
-                            <CheckCircleIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-blue-100' : 'text-blue-600 dark:text-blue-400'}`} />
-                            <span className={`text-sm ${isPro ? 'text-blue-50' : 'text-gray-600 dark:text-gray-300'}`}>
-                              {feature}
-                            </span>
-                          </li>
-                        ))}
+                        {plan.features.map((feature, fIndex) => {
+                          const hasCheck = feature.startsWith('✅');
+                          const hasX = feature.startsWith('❌');
+                          const cleanFeature = feature.replace(/^(✅|❌)\s*/, '');
+                          
+                          return (
+                            <li key={fIndex} className="flex items-start gap-2">
+                              {hasCheck && (
+                                <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-blue-100' : 'text-green-600 dark:text-green-400'}`} />
+                              )}
+                              {hasX && (
+                                <XMarkIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-red-300' : 'text-red-500 dark:text-red-400'}`} />
+                              )}
+                              {!hasCheck && !hasX && (
+                                <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-blue-100' : 'text-green-600 dark:text-green-400'}`} />
+                              )}
+                              <span className={`text-sm ${isPro ? 'text-blue-50' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {cleanFeature}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                     

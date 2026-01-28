@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckIcon, SparklesIcon } from '@heroicons/react/24/solid';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import { SparklesIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import Layout from '../components/Layout';
 import Loading from '../components/Loading';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
@@ -49,24 +48,17 @@ const Plans = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
+      <Layout title="Planos">
+        <div className="flex items-center justify-center h-64">
           <Loading />
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+    <Layout title="Planos">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8 text-center">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -83,7 +75,7 @@ const Plans = () => {
                 const isCurrentPlan = user?.planId === plan.id;
                 const isPro = plan.name === 'Pro';
                 const isFree = plan.name === 'Gratuito';
-                const canUpgrade = !isCurrentPlan && !isFree;
+                const canChange = !isCurrentPlan;
 
                 return (
                   <div
@@ -135,26 +127,41 @@ const Plans = () => {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {plan.maxQuotes === -1 
+                        {plan.quotesLimit === -1 
                           ? 'Orçamentos ilimitados' 
-                          : `Até ${plan.maxQuotes} orçamentos/mês`
+                          : `Até ${plan.quotesLimit} orçamentos/mês`
                         }
                       </p>
                     </div>
 
                     {/* Features */}
                     <ul className="space-y-3 mb-8 flex-1">
-                      {Array.isArray(plan.features) && plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckIcon className={`
-                            h-5 w-5 flex-shrink-0 mt-0.5
-                            ${isPro ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'}
-                          `} />
-                          <span className="text-gray-700 dark:text-gray-300 text-sm">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
+                      {Array.isArray(plan.features) && plan.features.map((feature, index) => {
+                        const hasCheck = feature.startsWith('✅');
+                        const hasX = feature.startsWith('❌');
+                        const cleanFeature = feature.replace(/^(✅|❌)\s*/, '');
+                        
+                        return (
+                          <li key={index} className="flex items-start gap-2">
+                            {hasCheck && (
+                              <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                                isPro ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'
+                              }`} />
+                            )}
+                            {hasX && (
+                              <XMarkIcon className="h-5 w-5 flex-shrink-0 mt-0.5 text-red-500 dark:text-red-400" />
+                            )}
+                            {!hasCheck && !hasX && (
+                              <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
+                                isPro ? 'text-purple-600 dark:text-purple-400' : 'text-green-600 dark:text-green-400'
+                              }`} />
+                            )}
+                            <span className="text-gray-700 dark:text-gray-300 text-sm">
+                              {cleanFeature}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
 
                     {/* CTA Button */}
@@ -166,7 +173,7 @@ const Plans = () => {
                       >
                         Plano Atual
                       </Button>
-                    ) : canUpgrade ? (
+                    ) : (
                       <Button
                         onClick={() => handleUpgrade(plan.id)}
                         disabled={upgrading}
@@ -178,15 +185,7 @@ const Plans = () => {
                           }
                         `}
                       >
-                        {upgrading ? 'Processando...' : 'Fazer Upgrade'}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        disabled
-                        className="w-full"
-                      >
-                        Plano Gratuito
+                        {upgrading ? 'Processando...' : isFree ? 'Fazer Downgrade' : 'Fazer Upgrade'}
                       </Button>
                     )}
                   </div>
@@ -208,9 +207,7 @@ const Plans = () => {
               </ul>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

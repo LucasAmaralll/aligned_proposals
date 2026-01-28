@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
@@ -81,24 +80,17 @@ const ClientForm = () => {
 
   if (loadingData) {
     return (
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
+      <Layout title={isEdit ? 'Editar Cliente' : 'Novo Cliente'}>
+        <div className="flex items-center justify-center h-64">
           <Loading />
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-3xl mx-auto">
+    <Layout title={isEdit ? 'Editar Cliente' : 'Novo Cliente'}>
+      <div className="max-w-3xl mx-auto">
             {/* Header */}
             <div className="mb-6">
               <button
@@ -215,9 +207,7 @@ const ClientForm = () => {
               </div>
             </form>
           </div>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
@@ -22,10 +21,14 @@ const QuoteForm = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    idExt: '',
     clientId: '',
     validUntil: '',
     notes: '',
     termsConditions: '',
+    paymentTerms: '',
+    internalNotes: '',
+    additionalInfo: '',
     items: [{ description: '', quantity: 1, unitPrice: 0 }],
     discount: 0,
     tax: 0
@@ -67,14 +70,32 @@ const QuoteForm = () => {
       const response = await api.get(`/quotes/${id}`);
       const quote = response.data;
       
+      // Garantir que items seja sempre um array
+      let items = quote.items || [{ description: '', quantity: 1, unitPrice: 0 }];
+      if (typeof items === 'string') {
+        try {
+          items = JSON.parse(items);
+        } catch (e) {
+          console.error('Erro ao fazer parse dos items:', e);
+          items = [{ description: '', quantity: 1, unitPrice: 0 }];
+        }
+      }
+      if (!Array.isArray(items)) {
+        items = [{ description: '', quantity: 1, unitPrice: 0 }];
+      }
+      
       setFormData({
         title: quote.title,
         description: quote.description || '',
+        idExt: quote.idExt || '',
         clientId: quote.clientId,
         validUntil: quote.validUntil ? quote.validUntil.split('T')[0] : '',
         notes: quote.notes || '',
         termsConditions: quote.termsConditions || '',
-        items: quote.items || [{ description: '', quantity: 1, unitPrice: 0 }],
+        paymentTerms: quote.paymentTerms || '',
+        internalNotes: quote.internalNotes || '',
+        additionalInfo: quote.additionalInfo || '',
+        items: items,
         discount: Number(quote.discount) || 0,
         tax: Number(quote.tax) || 0
       });
@@ -98,6 +119,40 @@ const QuoteForm = () => {
     const newItems = [...formData.items];
     newItems[index][field] = value;
     setFormData({ ...formData, items: newItems });
+  };
+
+  const handlePriceChange = (index, value) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Converte para número (divide por 100 para obter centavos)
+    const numericValue = numbers ? parseFloat(numbers) / 100 : 0;
+    
+    const newItems = [...formData.items];
+    newItems[index].unitPrice = numericValue;
+    setFormData({ ...formData, items: newItems });
+  };
+
+  const formatPriceInput = (value) => {
+    if (!value && value !== 0) return 'R$ 0,00';
+    
+    const numValue = parseFloat(value) || 0;
+    return numValue.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  };
+
+  const handleDiscountChange = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    const numericValue = numbers ? parseFloat(numbers) / 100 : 0;
+    setFormData({ ...formData, discount: numericValue });
+  };
+
+  const handleTaxChange = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    const numericValue = numbers ? parseFloat(numbers) / 100 : 0;
+    setFormData({ ...formData, tax: numericValue });
   };
 
   const handleProductSelect = (index, productId) => {
@@ -196,24 +251,17 @@ const QuoteForm = () => {
 
   if (loadingData) {
     return (
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-        <Sidebar />
-        <div className="flex-1 flex items-center justify-center">
+      <Layout title={isEdit ? 'Editar Orçamento' : 'Novo Orçamento'}>
+        <div className="flex items-center justify-center h-64">
           <Loading />
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto">
+    <Layout title={isEdit ? 'Editar Orçamento' : 'Novo Orçamento'}>
+      <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-6">
               <button
@@ -240,7 +288,7 @@ const QuoteForm = () => {
                   Informações Básicas
                 </h3>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
+                  <div>
                     <Input
                       label="Título *"
                       name="title"
@@ -248,6 +296,16 @@ const QuoteForm = () => {
                       onChange={handleChange}
                       required
                       placeholder="Ex: Website Institucional"
+                    />
+                  </div>
+
+                  <div>
+                    <Input
+                      label="ID do Orçamento"
+                      name="idExt"
+                      value={formData.idExt}
+                      onChange={handleChange}
+                      placeholder="Ex: 1, 2024-001, ABC-123"
                     />
                   </div>
                   
@@ -335,7 +393,7 @@ const QuoteForm = () => {
 
                       <div className="flex gap-3 items-start">
                         <div className="flex-1 grid md:grid-cols-3 gap-3">
-                          <div className="md:col-span-3">
+                          <div className="md:col-span-2">
                             <input
                               type="text"
                               value={item.description}
@@ -355,18 +413,13 @@ const QuoteForm = () => {
                             required
                           />
                           <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                            placeholder="Valor unitário"
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            value={formatPriceInput(item.unitPrice)}
+                            onChange={(e) => handlePriceChange(index, e.target.value)}
+                            placeholder="R$ 0,00"
                             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             required
                           />
-                          <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white font-semibold">
-                            {formatCurrency((item.quantity || 0) * (item.unitPrice || 0))}
-                          </div>
                         </div>
                         {formData.items.length > 1 && (
                           <button
@@ -390,24 +443,30 @@ const QuoteForm = () => {
                   </div>
                   
                   <div className="grid md:grid-cols-2 gap-4">
-                    <Input
-                      label="Desconto (R$)"
-                      type="number"
-                      name="discount"
-                      value={formData.discount}
-                      onChange={handleChange}
-                      min="0"
-                      step="0.01"
-                    />
-                    <Input
-                      label="Taxa/Impostos (R$)"
-                      type="number"
-                      name="tax"
-                      value={formData.tax}
-                      onChange={handleChange}
-                      min="0"
-                      step="0.01"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Desconto
+                      </label>
+                      <input
+                        type="text"
+                        value={formatPriceInput(formData.discount)}
+                        onChange={(e) => handleDiscountChange(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Taxa/Impostos
+                      </label>
+                      <input
+                        type="text"
+                        value={formatPriceInput(formData.tax)}
+                        onChange={(e) => handleTaxChange(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
                   </div>
                   
                   <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-3 border-t border-gray-200 dark:border-gray-700">
@@ -433,10 +492,38 @@ const QuoteForm = () => {
                       onChange={handleChange}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="Observações internas..."
+                      placeholder="Observações que aparecerão no orçamento..."
                     />
                   </div>
-                  
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Observações Internas
+                    </label>
+                    <textarea
+                      name="internalNotes"
+                      value={formData.internalNotes}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Observações internas (não aparecem no PDF)..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Forma de Pagamento
+                    </label>
+                    <textarea
+                      name="paymentTerms"
+                      value={formData.paymentTerms}
+                      onChange={handleChange}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Ex: Pix com 10% de desconto ou 2x no cartão de crédito"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Termos e Condições
@@ -445,9 +532,23 @@ const QuoteForm = () => {
                       name="termsConditions"
                       value={formData.termsConditions}
                       onChange={handleChange}
-                      rows={4}
+                      rows={3}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      placeholder="Termos e condições do orçamento..."
+                      placeholder="Ex: Este orçamento é válido por 30 dias"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Informações Adicionais
+                    </label>
+                    <textarea
+                      name="additionalInfo"
+                      value={formData.additionalInfo}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Outras informações relevantes do orçamento..."
                     />
                   </div>
                 </div>
@@ -468,9 +569,7 @@ const QuoteForm = () => {
               </div>
             </form>
           </div>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -6,20 +6,41 @@ import {
   EyeIcon,
   DocumentTextIcon,
   PencilIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Loading from '../components/Loading';
+import Modal from '../components/Modal';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatDate, getStatusColor, getStatusLabel, generateWhatsAppLink } from '../utils/helpers';
 
 const Quotes = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showLimitModal, setShowLimitModal] = useState(false);
+
+  const quotesRemaining = () => {
+    if (!user?.plan?.quotesLimit || user.plan.quotesLimit === -1) {
+      return Infinity;
+    }
+    const remaining = user.plan.quotesLimit - (user.quotesThisMonth || 0);
+    return remaining > 0 ? remaining : 0;
+  };
+
+  const handleNewQuote = () => {
+    const remaining = quotesRemaining();
+    if (remaining === 0) {
+      setShowLimitModal(true);
+    } else {
+      navigate('/quotes/new');
+    }
+  };
 
   useEffect(() => {
     loadQuotes();
@@ -63,15 +84,29 @@ const Quotes = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
+  const handleViewPDF = async (quoteId) => {
+    try {
+      const response = await api.get(`/quotes/${quoteId}/pdf`, {
+        responseType: 'blob',
+      });
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-7xl mx-auto">
+      // Criar URL temporária para o blob
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      
+      // Abrir em nova aba
+      window.open(url, '_blank');
+      
+      // Limpar URL após um tempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Erro ao visualizar PDF:', error);
+      alert('Erro ao visualizar PDF');
+    }
+  };
+
+  return (
+    <Layout title="Orçamentos">
+      <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -79,13 +114,13 @@ const Quotes = () => {
                 <p className="text-gray-600 dark:text-gray-400">Gerencie seus orçamentos</p>
               </div>
               
-              <Link
-                to="/quotes/new"
+              <button
+                onClick={handleNewQuote}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <PlusIcon className="h-5 w-5" />
                 Novo Orçamento
-              </Link>
+              </button>
             </div>
 
             {/* Filters */}
@@ -127,13 +162,13 @@ const Quotes = () => {
                 </p>
                 {!search && statusFilter === 'all' && (
                   <div className="mt-6">
-                    <Link
-                      to="/quotes/new"
+                    <button
+                      onClick={handleNewQuote}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
                       <PlusIcon className="h-5 w-5" />
                       Novo Orçamento
-                    </Link>
+                    </button>
                   </div>
                 )}
               </div>
@@ -176,11 +211,11 @@ const Quotes = () => {
                         {/* Action Buttons */}
                         <div className="mt-4 flex gap-2 flex-wrap">
                           <button
-                            onClick={() => navigate(`/quotes/${quote.id}`)}
+                            onClick={() => handleViewPDF(quote.id)}
                             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30"
                           >
                             <EyeIcon className="h-4 w-4" />
-                            Visualizar
+                            Visualizar PDF
                           </button>
                           <button
                             onClick={() => navigate(`/quotes/${quote.id}/edit`)}
@@ -216,9 +251,44 @@ const Quotes = () => {
               </div>
             )}
           </div>
-        </main>
-      </div>
-    </div>
+
+      {/* Modal de Limite Atingido */}
+      <Modal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        title="Limite de Orçamentos Atingido"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <div className="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+              <LockClosedIcon className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-700 dark:text-gray-300">
+              Você atingiu o limite de <strong>{user?.plan?.quotesLimit} orçamentos</strong> do seu plano <strong>{user?.plan?.name}</strong> neste mês.
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Faça upgrade do seu plano para criar mais orçamentos!
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowLimitModal(false)}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => navigate('/plans')}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Ver Planos
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </Layout>
   );
 };
 

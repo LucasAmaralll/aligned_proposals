@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UserIcon, 
   BuildingOfficeIcon, 
@@ -6,8 +6,7 @@ import {
   TrashIcon,
   PhotoIcon 
 } from '@heroicons/react/24/outline';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
@@ -24,7 +23,8 @@ const Profile = () => {
     name: user?.name || '',
     email: user?.email || '',
     company: user?.company || '',
-    phone: user?.phone || ''
+    phone: user?.phone || '',
+    website: user?.website || ''
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -34,7 +34,18 @@ const Profile = () => {
   });
 
   const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(user?.logo || null);
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  const baseUrl = apiUrl.replace('/api', '');
+  const [logoPreview, setLogoPreview] = useState(
+    user?.logo ? `${baseUrl}${user.logo}` : null
+  );
+
+  // Atualizar preview quando user.logo mudar
+  useEffect(() => {
+    if (user?.logo) {
+      setLogoPreview(`${baseUrl}${user.logo}`);
+    }
+  }, [user?.logo, baseUrl]);
 
   const handleChange = (e) => {
     setFormData({
@@ -53,6 +64,21 @@ const Profile = () => {
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validar tipo de arquivo
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Por favor, selecione apenas arquivos de imagem (JPEG, PNG, GIF, WebP)');
+        e.target.value = '';
+        return;
+      }
+
+      // Validar tamanho (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 2MB');
+        e.target.value = '';
+        return;
+      }
+
       setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -91,15 +117,41 @@ const Profile = () => {
       const formDataObj = new FormData();
       formDataObj.append('logo', logoFile);
       
-      await api.patch('/users/logo', formDataObj, {
+      const response = await api.patch('/users/logo', formDataObj, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      console.log('✅ Logo atualizado:', response.data);
       alert('Logo atualizado com sucesso!');
       window.location.reload();
     } catch (error) {
-      console.error('Erro ao atualizar logo:', error);
-      alert(error.response?.data?.error || 'Erro ao atualizar logo');
+      console.error('❌ Erro ao atualizar logo:', error);
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.error || 'Erro ao atualizar logo';
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteLogo = async () => {
+    if (!user?.logo) {
+      alert('Nenhuma logo para deletar');
+      return;
+    }
+
+    if (!window.confirm('Tem certeza que deseja deletar a logo?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete('/users/logo');
+      alert('Logo deletada com sucesso!');
+      setLogoPreview(null);
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao deletar logo:', error);
+      alert(error.response?.data?.error || 'Erro ao deletar logo');
     } finally {
       setLoading(false);
     }
@@ -163,14 +215,8 @@ const Profile = () => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto">
+    <Layout title="Meu Perfil">
+      <div className="max-w-4xl mx-auto">
             {/* Header */}
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -240,6 +286,13 @@ const Profile = () => {
                         onChange={handleChange}
                         placeholder="(00) 00000-0000"
                       />
+                      <Input
+                        label="Website"
+                        name="website"
+                        value={formData.website}
+                        onChange={handleChange}
+                        placeholder="https://www.seusite.com"
+                      />
                     </div>
                   </div>
                   
@@ -288,15 +341,28 @@ const Profile = () => {
                     
                     <div className="flex flex-col items-center gap-6">
                       {/* Preview */}
-                      <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900">
-                        {logoPreview ? (
-                          <img 
-                            src={logoPreview} 
-                            alt="Logo preview" 
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <PhotoIcon className="h-12 w-12 text-gray-400" />
+                      <div className="relative w-32 h-32">
+                        <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900">
+                          {logoPreview ? (
+                            <img 
+                              src={logoPreview} 
+                              alt="Logo preview" 
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <PhotoIcon className="h-12 w-12 text-gray-400" />
+                          )}
+                        </div>
+                        {logoPreview && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteLogo}
+                            disabled={loading}
+                            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 transition-colors"
+                            title="Deletar logo"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
                       
@@ -304,12 +370,12 @@ const Profile = () => {
                       <div className="w-full">
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                           onChange={handleLogoChange}
                           className="block w-full text-sm text-gray-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-400 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/30"
                         />
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                          PNG, JPG ou GIF (máx. 2MB)
+                          JPEG, PNG, GIF ou WebP (máx. 2MB)
                         </p>
                       </div>
                     </div>
@@ -392,8 +458,6 @@ const Profile = () => {
               )}
             </div>
           </div>
-        </main>
-      </div>
 
       {/* Delete Confirmation Modal */}
       <Modal
@@ -423,7 +487,7 @@ const Profile = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </Layout>
   );
 };
 

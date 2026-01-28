@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { InformationCircleIcon, CalculatorIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
@@ -65,16 +66,36 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Calculadora de Matéria-Prima">
       <div className="space-y-4">
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-          <p className="text-sm text-blue-800">
-            <strong>Exemplo:</strong> Comprei 1kg de PLA por R$ 98,00, mas usei apenas 128g.
-            <br />Quanto custou a quantidade que usei?
+        {/* Informações */}
+        <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 p-4">
+          <div className="flex">
+            <InformationCircleIcon className="h-5 w-5 text-blue-400 flex-shrink-0" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Como usar:</h3>
+              <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Informe a quantidade e preço da compra original</li>
+                  <li>Informe a quantidade que você realmente usou</li>
+                  <li>A calculadora mostrará o custo proporcional</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Exemplo */}
+        <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Exemplo:</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            Comprei <strong>1kg</strong> de PLA por <strong>R$ 98,00</strong>, mas usei apenas <strong>128g</strong>.
+            <br />Quanto custou a quantidade que usei? = <strong>R$ 12,54</strong>
           </p>
         </div>
 
-        <div>
-          <h3 className="font-semibold text-gray-700 mb-2">Dados da Compra</h3>
-          <div className="grid grid-cols-3 gap-2">
+        {/* Formulário */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Dados da Compra</h3>
+          <div className="grid grid-cols-3 gap-4">
             <div className="col-span-1">
               <Input
                 label="Quantidade"
@@ -86,11 +107,11 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
               />
             </div>
             <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Unidade
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 value={purchaseData.purchaseUnit}
                 onChange={(e) => setPurchaseData({ ...purchaseData, purchaseUnit: e.target.value })}
               >
@@ -117,8 +138,8 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
         </div>
 
         <div>
-          <h3 className="font-semibold text-gray-700 mb-2">Quantidade Usada</h3>
-          <div className="grid grid-cols-2 gap-2">
+          <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-3">Quantidade Usada</h3>
+          <div className="grid grid-cols-2 gap-4">
             <div className="col-span-1">
               <Input
                 label="Quantidade"
@@ -130,11 +151,11 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
               />
             </div>
             <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                 Unidade
               </label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 value={purchaseData.usedUnit}
                 onChange={(e) => setPurchaseData({ ...purchaseData, usedUnit: e.target.value })}
               >
@@ -150,42 +171,45 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
           </div>
         </div>
 
-        <Button
-          onClick={handleCalculate}
-          className="w-full"
-          variant="secondary"
-        >
-          Calcular Custo
-        </Button>
-
+        {/* Resultado */}
         {calculatedCost && (
-          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-            <p className="text-sm text-gray-700 mb-1">
-              Custo da quantidade usada:
-            </p>
-            <p className="text-2xl font-bold text-green-700">
-              R$ {calculatedCost}
-            </p>
-            <p className="text-xs text-gray-600 mt-2">
-              {purchaseData.usedQuantity} {purchaseData.usedUnit} de {purchaseData.purchaseQuantity} {purchaseData.purchaseUnit}
-            </p>
+          <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/30 border-2 border-green-200 dark:border-green-700 rounded-lg">
+            <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-3">Resultado:</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-green-700 dark:text-green-400">Quantidade usada:</span>
+                <span className="text-sm font-semibold text-green-900 dark:text-green-200">
+                  {purchaseData.usedQuantity} {purchaseData.usedUnit} de {purchaseData.purchaseQuantity} {purchaseData.purchaseUnit}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-green-200 dark:border-green-700">
+                <span className="text-sm text-green-700 dark:text-green-400">Custo Total:</span>
+                <span className="text-xl font-bold text-green-900 dark:text-green-100">
+                  R$ {calculatedCost}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="flex gap-2 mt-4">
+        {/* Botões */}
+        <div className="flex gap-3 mt-6">
           <Button
-            onClick={handleClose}
-            variant="outline"
-            className="flex-1"
+            variant="primary"
+            onClick={handleCalculate}
+            disabled={!purchaseData.purchaseQuantity || !purchaseData.purchasePrice || !purchaseData.usedQuantity}
           >
-            Cancelar
+            Calcular
           </Button>
-          <Button
-            onClick={handleUseValue}
-            className="flex-1"
-            disabled={!calculatedCost}
-          >
-            Usar Valor Calculado
+          
+          {calculatedCost && (
+            <Button variant="success" onClick={handleUseValue}>
+              Usar no Formulário
+            </Button>
+          )}
+          
+          <Button variant="secondary" onClick={handleClose}>
+            Fechar
           </Button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { SidebarProvider } from './context/SidebarContext';
 import PrivateRoute from './components/PrivateRoute';
 
 // Public pages
@@ -25,13 +26,14 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/view/:token" element={<PublicQuoteView />} />
+        <SidebarProvider>
+          <Router>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/view/:token" element={<PublicQuoteView />} />
 
             {/* Private routes - Dashboard */}
             <Route
@@ -145,6 +147,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
+      </SidebarProvider>
       </AuthProvider>
     </ThemeProvider>
   );

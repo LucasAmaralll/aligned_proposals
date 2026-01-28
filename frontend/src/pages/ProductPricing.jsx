@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { LockClosedIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
-import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import PricingCalculator from '../components/PricingCalculator';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
+import { useAuth } from '../context/AuthContext';
 
 const ProductPricing = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,13 +120,59 @@ const ProductPricing = () => {
     navigate('/pricing');
   };
 
+  const hasAccessToPricing = () => {
+    return user?.plan?.name !== 'Gratuito';
+  };
+
+  if (!hasAccessToPricing()) {
+    return (
+      <Layout title="Precificação Inteligente">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full mb-6">
+              <LockClosedIcon className="w-10 h-10 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+              Recurso Bloqueado
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+              A <strong>Precificação Inteligente</strong> está disponível apenas nos planos <strong>Básico</strong> e <strong>Pro</strong>.
+            </p>
+            <div className="space-y-4 text-left max-w-md mx-auto mb-8">
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                <p className="text-gray-700 dark:text-gray-300">
+                  Calcule custos de produção automaticamente
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                <p className="text-gray-700 dark:text-gray-300">
+                  Defina preços ideais com base em margem de lucro
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+                <p className="text-gray-700 dark:text-gray-300">
+                  Considere energia, mão de obra e matéria-prima
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/plans')}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 text-lg"
+            >
+              Ver Planos e Fazer Upgrade
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-8">
-          <div className="max-w-7xl mx-auto">
+    <Layout title="Precificação Inteligente">
+      <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Precificação Inteligente</h1>
               {!showForm && (
@@ -224,9 +272,7 @@ const ProductPricing = () => {
               />
             )}
           </div>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

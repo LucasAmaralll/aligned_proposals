@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import { useNavigate } from 'react-router-dom';
+import { LockClosedIcon } from '@heroicons/react/24/solid';
+import Layout from '../components/Layout';
 import Card from '../components/Card';
 import Loading from '../components/Loading';
+import Button from '../components/Button';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/helpers';
@@ -16,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -44,6 +46,10 @@ const Dashboard = () => {
     return remaining > 0 ? remaining : 0;
   };
 
+  const hasAccessToDashboard = () => {
+    return user?.plan?.name !== 'Gratuito';
+  };
+
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
@@ -62,23 +68,61 @@ const Dashboard = () => {
     return <Loading fullScreen />;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      
-      <div className="lg:ml-64">
-        <Header setSidebarOpen={setSidebarOpen} title="Dashboard" />
-        
-        <main className="p-6">
-          {/* Welcome banner */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl p-8 mb-6 text-white">
-            <h2 className="text-2xl font-bold mb-2">
-              Olá, {user?.name}! 👋
-            </h2>
-            <p className="text-blue-100">
-              Bem-vindo ao seu painel de controle. Aqui você pode gerenciar seus orçamentos e clientes.
-            </p>
+  // Se não tem acesso ao dashboard, mostra tela de bloqueio
+  if (!hasAccessToDashboard()) {
+    return (
+      <Layout title="Dashboard">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div className="bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-6 mb-6">
+            <LockClosedIcon className="w-16 h-16 text-yellow-600 dark:text-yellow-500" />
           </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+            Dashboard Bloqueado
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+            O Dashboard está disponível apenas nos planos Básico e Pro.
+          </p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-8 max-w-md">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+              Com o Dashboard você terá:
+            </h3>
+            <ul className="text-left space-y-2 text-gray-700 dark:text-gray-300">
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <span>Estatísticas detalhadas de clientes e orçamentos</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <span>Gráficos e análises de desempenho</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-green-500 mr-2">✓</span>
+                <span>Acompanhamento de atividades recentes</span>
+              </li>
+            </ul>
+          </div>
+          <Button
+            onClick={() => navigate('/plans')}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          >
+            Ver Planos e Fazer Upgrade
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout title="Dashboard">
+      {/* Welcome banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl p-6 sm:p-8 mb-6 text-white">
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">
+          Olá, {user?.name}! 👋
+        </h2>
+        <p className="text-sm sm:text-base text-blue-100">
+          Bem-vindo ao seu painel de controle. Aqui você pode gerenciar seus orçamentos e clientes.
+        </p>
+      </div>
 
           {/* Plan info */}
           <div className="bg-white dark:bg-gray-800 border-l-4 border-blue-600 dark:border-blue-400 rounded-lg p-6 mb-6">
@@ -170,9 +214,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </Layout>
   );
 };
 

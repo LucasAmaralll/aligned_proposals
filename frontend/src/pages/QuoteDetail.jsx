@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Layout from '../components/Layout';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
@@ -20,7 +19,6 @@ import {
 const QuoteDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [emailModal, setEmailModal] = useState(false);
@@ -134,16 +132,11 @@ const QuoteDetail = () => {
     return <div>Orçamento não encontrado</div>;
   }
 
-  const items = JSON.parse(quote.items);
+  // Items já vem como array do backend
+  const items = Array.isArray(quote.items) ? quote.items : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      
-      <div className="lg:ml-64">
-        <Header setSidebarOpen={setSidebarOpen} title="Detalhes do Orçamento" />
-        
-        <main className="p-6">
+    <Layout title="Detalhes do Orçamento">
           {/* Actions bar */}
           <div className="mb-6 flex flex-wrap gap-3">
             <Button
@@ -362,8 +355,6 @@ const QuoteDetail = () => {
               </Card>
             </div>
           </div>
-        </main>
-      </div>
 
       {/* Email Modal */}
       <Modal
@@ -416,7 +407,7 @@ const QuoteDetail = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </Layout>
   );
 };
 
