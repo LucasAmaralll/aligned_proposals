@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 class QuoteController {
   async create(req, res) {
     try {
-      const { title, description, clientId, items, discount, tax, notes, termsConditions, validUntil } = req.body;
+      const { title, description, idExt, clientId, items, discount, tax, notes, termsConditions, paymentTerms, internalNotes, additionalInfo, validUntil } = req.body;
 
       // Validações
       if (!title || !clientId || !items || items.length === 0) {
@@ -69,6 +69,7 @@ class QuoteController {
         data: {
           title,
           description: description || '',
+          idExt: idExt || '',
           deletionStatus: 1,
           user: {
             connect: { id: req.userId }
@@ -83,6 +84,9 @@ class QuoteController {
           total,
           notes: notes || '',
           termsConditions: termsConditions || '',
+          paymentTerms: paymentTerms || '',
+          internalNotes: internalNotes || '',
+          additionalInfo: additionalInfo || '',
           validUntil: validUntil ? new Date(validUntil) : null
         },
         include: {
@@ -138,6 +142,13 @@ class QuoteController {
         prisma.quote.count({ where })
       ]);
 
+      // Parse items de JSON string para array em todos os quotes
+      quotes.forEach(quote => {
+        if (quote.items && typeof quote.items === 'string') {
+          quote.items = JSON.parse(quote.items);
+        }
+      });
+
       return res.json({
         quotes,
         pagination: {
@@ -174,6 +185,11 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
+
       return res.json(quote);
     } catch (error) {
       console.error('Erro ao buscar orçamento:', error);
@@ -205,6 +221,11 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
+
       // Incrementar contador de visualizações
       await prisma.quote.update({
         where: { id: quote.id },
@@ -221,7 +242,7 @@ class QuoteController {
   async update(req, res) {
     try {
       const { id } = req.params;
-      const { title, description, items, discount, tax, notes, termsConditions, validUntil, status } = req.body;
+      const { title, description, idExt, items, discount, tax, notes, termsConditions, paymentTerms, internalNotes, additionalInfo, validUntil, status } = req.body;
 
       // Verificar se orçamento pertence ao usuário
       const quoteExists = await prisma.quote.findFirst({
@@ -236,13 +257,18 @@ class QuoteController {
       }
 
       // Recalcular valores se itens foram alterados
+      // IMPORTANTE: Sempre voltar para 'pending' ao editar
       let updateData = {
         title,
         description,
+        idExt,
         notes,
         termsConditions,
+        paymentTerms,
+        internalNotes,
+        additionalInfo,
         validUntil: validUntil ? new Date(validUntil) : null,
-        status
+        status: 'pending' // Sempre resetar para pendente ao editar
       };
 
       if (items) {
@@ -274,6 +300,11 @@ class QuoteController {
           }
         }
       });
+
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
 
       return res.json(quote);
     } catch (error) {
@@ -334,6 +365,11 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
+
       console.log('📋 Gerando PDF para orçamento:', quote.id);
 
       // Gerar PDF usando template HTML + Puppeteer
@@ -386,6 +422,11 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
+
       const html = pdfService.generateQuotePDFHTML(quote);
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -417,6 +458,11 @@ class QuoteController {
 
       if (!quote) {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
+      }
+
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
       }
 
       // Gerar PDF usando template HTML + Puppeteer

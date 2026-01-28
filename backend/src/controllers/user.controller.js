@@ -34,14 +34,15 @@ class UserController {
 
   async updateProfile(req, res) {
     try {
-      const { name, company, phone } = req.body;
+      const { name, company, phone, website } = req.body;
 
       const user = await prisma.user.update({
         where: { id: req.userId },
         data: {
           ...(name && { name }),
           ...(company && { company }),
-          ...(phone && { phone })
+          ...(phone && { phone }),
+          ...(website && { website })
         },
         include: { plan: true }
       });
@@ -107,6 +108,42 @@ class UserController {
     } catch (error) {
       console.error('Erro ao fazer upload do logo:', error);
       return res.status(500).json({ error: 'Erro ao fazer upload do logo' });
+    }
+  }
+
+  async deleteLogo(req, res) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+
+      // Buscar usuário para pegar o caminho do logo
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId }
+      });
+
+      if (!user?.logo) {
+        return res.status(400).json({ error: 'Nenhuma logo para deletar' });
+      }
+
+      // Deletar arquivo físico se existir
+      const logoPath = path.join(__dirname, '../../' + user.logo);
+      if (fs.existsSync(logoPath)) {
+        fs.unlinkSync(logoPath);
+      }
+
+      // Atualizar banco de dados
+      const updatedUser = await prisma.user.update({
+        where: { id: req.userId },
+        data: { logo: null },
+        include: { plan: true }
+      });
+
+      delete updatedUser.password;
+
+      return res.json(updatedUser);
+    } catch (error) {
+      console.error('Erro ao deletar logo:', error);
+      return res.status(500).json({ error: 'Erro ao deletar logo' });
     }
   }
 

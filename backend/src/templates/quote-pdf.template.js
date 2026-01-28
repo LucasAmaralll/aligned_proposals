@@ -1,6 +1,6 @@
 /**
  * Template HTML/CSS para geração de PDF de Orçamento
- * Compatível com Puppeteer, pdf-lib ou qualquer renderizador HTML-to-PDF
+ * Design moderno com paleta azul
  */
 
 function generateQuotePDFTemplate(quote) {
@@ -28,24 +28,24 @@ function generateQuotePDFTemplate(quote) {
   const companyName = escapeHtml(quote.user?.company || quote.user?.name || 'Empresa');
   const companyEmail = escapeHtml(quote.user?.email || '');
   const companyPhone = escapeHtml(quote.user?.phone || '');
-  const companyLogo = quote.user?.logo || '';
+  const companyWebsite = escapeHtml(quote.user?.website || 'www.alignedproposals.com');
+  
+  // URL da logo do usuário (se houver)
+  const logoUrl = quote.user?.logo 
+    ? `http://localhost:5000${quote.user.logo}` 
+    : null;
   
   const clientName = escapeHtml(quote.client?.name || 'Cliente não informado');
   const clientEmail = escapeHtml(quote.client?.email || 'Não informado');
   const clientPhone = escapeHtml(quote.client?.phone || 'Não informado');
-  const clientLogo = quote.client?.logoUrl || ''; // Logo do cliente
+  const clientAddress = escapeHtml(quote.client?.address || 'Não informado');
+  
+  // ID do orçamento - usar idExt se disponível, senão usar um número curto
+  const quoteId = quote.idExt || quote.id?.substring(0, 5).toUpperCase() || 'N/A';
   
   // Formatação de datas
   const createdAt = quote.createdAt ? new Date(quote.createdAt).toLocaleDateString('pt-BR') : '';
   const validUntil = quote.validUntil ? new Date(quote.validUntil).toLocaleDateString('pt-BR') : '';
-  
-  // Status
-  const statusConfig = {
-    pending: { label: 'PENDENTE', bg: '#FEF3C7', color: '#92400E' },
-    approved: { label: 'APROVADO', bg: '#D1FAE5', color: '#065F46' },
-    rejected: { label: 'REJEITADO', bg: '#FEE2E2', color: '#991B1B' }
-  };
-  const status = statusConfig[quote.status] || statusConfig.pending;
   
   // Cálculos
   const subtotal = Number(quote.subtotal) || 0;
@@ -59,30 +59,50 @@ function generateQuotePDFTemplate(quote) {
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
   
-  // Geração dos itens da tabela
+  // Geração dos itens da tabela com desconto e tributo
   const itemsHTML = items.map((item, index) => {
     const quantity = Number(item.quantity) || 0;
     const unitPrice = Number(item.unitPrice) || 0;
-    const itemTotal = quantity * unitPrice;
-    const bgColor = index % 2 === 0 ? '#FFFFFF' : '#F9FAFB';
+    const itemDiscount = Number(item.discount) || 0;
+    const itemTax = Number(item.tax) || 0;
+    const itemSubtotal = quantity * unitPrice;
+    const itemTotal = itemSubtotal - itemDiscount + itemTax;
     
-    return `
-      <tr style="background-color: ${bgColor};">
-        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; font-size: 13px; color: #1F2937;">
+    let html = `
+      <tr${index % 2 === 1 ? ' style="background-color: #bfdbfe;"' : ''}>
+        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 12px; color: #2b2b2b;">
           ${escapeHtml(item.description || 'Sem descrição')}
         </td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: center; font-size: 13px; color: #1F2937; white-space: nowrap;">
-          ${quantity}
+        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; font-size: 11px; color: #666; line-height: 1.5;">
+          ${escapeHtml(item.details || '-')}
         </td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 13px; color: #1F2937; white-space: nowrap;">
-          ${formatCurrency(unitPrice)}
-        </td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #E5E7EB; text-align: right; font-size: 13px; font-weight: 600; color: #1F2937; white-space: nowrap;">
+        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right; font-size: 12px; color: #2b2b2b; font-weight: 600;">
           ${formatCurrency(itemTotal)}
-        </td>
-      </tr>
-    `;
+        </td>`;
+    
+    // Mostrar desconto se houver
+    if (itemDiscount > 0) {
+      html += `
+        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right; font-size: 12px; color: #00a86b; font-weight: 600;">
+          -${formatCurrency(itemDiscount)}
+        </td>`;
+    }
+    
+    // Mostrar tributo se houver
+    if (itemTax > 0) {
+      html += `
+        <td style="padding: 12px; border-bottom: 1px solid #e0e0e0; text-align: right; font-size: 12px; color: #1d4ed8; font-weight: 600;">
+          +${formatCurrency(itemTax)}
+        </td>`;
+    }
+    
+    html += `</tr>`;
+    return html;
   }).join('');
+
+  // Verificar se há desconto ou tributo em algum item
+  const hasItemDiscount = items.some(item => Number(item.discount) > 0);
+  const hasItemTax = items.some(item => Number(item.tax) > 0);
 
   return `
 <!DOCTYPE html>
@@ -90,7 +110,8 @@ function generateQuotePDFTemplate(quote) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Orçamento #${quote.id?.substring(0, 8).toUpperCase()}</title>
+  <title>Orçamento #${quote.id}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -99,463 +120,333 @@ function generateQuotePDFTemplate(quote) {
     }
     
     body {
-      font-family: 'Arial', 'Helvetica', sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      color: #1F2937;
-      background-color: #FFFFFF;
-      padding: 20px;
+      font-family: 'Poppins', sans-serif;
+      background: #fff;
+      color: #2b2b2b;
+      line-height: 1.6;
+      position: relative;
     }
     
     .container {
-      max-width: 800px;
+      width: 800px;
       margin: 0 auto;
-      background: white;
-    }
-    
-    /* CABEÇALHO */
-    .header {
-      background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
-      color: white;
       padding: 30px;
-      border-radius: 8px 8px 0 0;
-      position: relative;
-      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-height: 100vh;
+      justify-content: space-between;
     }
     
-    .header-content {
+    .header {
+      margin-bottom: 20px;
+      padding-bottom: 0;
+      border-bottom: none;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .company-header {
+      text-align: center;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      order: -1;
+    }
+    
+    .company-header-content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .header-top {
+      display: flex;
+      justify-content: flex-start;
       align-items: flex-start;
+      margin-bottom: 0;
+      gap: 20px;
     }
     
     .company-info {
-      flex: 1;
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-    }
-    
-    .company-logo {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 8px;
-    }
-    
-    .company-details {
-      flex: 1;
+      text-align: left;
     }
     
     .company-name {
-      font-size: 22px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      color: #FFFFFF;
-    }
-    
-    .company-contact {
-      font-size: 12px;
-      color: #E0E7FF;
-      margin: 2px 0;
-    }
-    
-    .client-logo-container {
-      width: 100px;
-      text-align: right;
-    }
-    
-    .client-logo {
-      max-width: 100px;
-      max-height: 80px;
-      object-fit: contain;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 6px;
-      padding: 6px;
-    }
-    
-    .document-title {
-      text-align: center;
-      font-size: 28px;
-      font-weight: bold;
-      margin: 20px 0 10px 0;
-      color: #FFFFFF;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-    
-    /* INFORMAÇÕES DO DOCUMENTO */
-    .document-info {
-      background: #F3F4F6;
-      border: 1px solid #D1D5DB;
-      border-radius: 6px;
-      padding: 20px;
-      margin: 20px 0;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-    
-    .info-group {
-      flex: 1;
-      min-width: 200px;
-    }
-    
-    .info-label {
-      font-size: 11px;
-      font-weight: bold;
-      color: #6B7280;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    
-    .info-value {
-      font-size: 14px;
-      color: #1F2937;
-      font-weight: 600;
-    }
-    
-    .status-badge {
-      display: inline-block;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: bold;
-      text-align: center;
-      white-space: nowrap;
-      background-color: ${status.bg};
-      color: ${status.color};
-    }
-    
-    /* SEÇÕES */
-    .section {
-      margin: 25px 0;
-    }
-    
-    .section-title {
       font-size: 16px;
-      font-weight: bold;
-      color: #1E3A8A;
+      font-weight: 700;
+      color: #1d4ed8;
+      margin-bottom: 0;
       text-transform: uppercase;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #1E3A8A;
-      white-space: nowrap;
+      letter-spacing: 1px;
     }
     
-    .section-content {
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 18px;
-    }
-    
-    .field-row {
-      display: flex;
-      margin-bottom: 10px;
-    }
-    
-    .field-row:last-child {
+    .logo {
+      max-height: 50px;
+      max-width: 120px;
+      object-fit: contain;
       margin-bottom: 0;
     }
     
-    .field-label {
-      font-weight: bold;
-      color: #374151;
-      min-width: 100px;
-      font-size: 13px;
+    .document-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1d4ed8;
+      margin-top: 0;
+      letter-spacing: 1px;
+      margin-bottom: 0;
     }
     
-    .field-value {
-      color: #1F2937;
-      flex: 1;
-      font-size: 13px;
+    .document-date {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
     }
     
-    /* DESCRIÇÃO */
-    .description-content {
-      background: white;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
+    .section {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #3b82f6;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    
+    .info-block {
+      background: #bfdbfe;
       padding: 16px;
+      border-radius: 4px;
+      border-left: 4px solid #3b82f6;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     
-    .description-title {
-      font-size: 15px;
-      font-weight: bold;
-      color: #1F2937;
-      margin-bottom: 8px;
+    .info-row {
+      display: flex;
+      margin-bottom: 0;
+      font-size: 12px;
     }
     
-    .description-text {
-      font-size: 13px;
-      color: #4B5563;
-      line-height: 1.6;
+    .info-row:last-child {
+      margin-bottom: 0;
     }
     
-    /* TABELA */
-    .items-table {
+    .info-label {
+      font-weight: 600;
+      color: #2b2b2b;
+      min-width: 80px;
+    }
+    
+    .info-value {
+      color: #666;
+    }
+    
+    table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      overflow: hidden;
+      margin-bottom: 0;
+      border: 1px solid #e0e0e0;
+      margin-top: 12px;
     }
     
-    .items-table thead {
-      background: #1E3A8A;
-      color: white;
+    thead {
+      background: #3b82f6;
     }
     
-    .items-table thead th {
-      padding: 14px 16px;
+    th {
+      padding: 12px;
       text-align: left;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 600;
+      color: #fff;
+      border-bottom: 2px solid #3b82f6;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      white-space: nowrap;
     }
     
-    .items-table thead th:nth-child(1) {
-      width: 45%;
-    }
-    
-    .items-table thead th:nth-child(2) {
-      width: 15%;
-      text-align: center;
-    }
-    
-    .items-table thead th:nth-child(3) {
-      width: 20%;
+    th:last-child {
       text-align: right;
     }
     
-    .items-table thead th:nth-child(4) {
-      width: 20%;
-      text-align: right;
+    td {
+      padding: 12px;
+      font-size: 12px;
+      border-bottom: 1px solid #e0e0e0;
+      color: #1d4ed8;
+      font-weight: 600;
     }
     
-    .items-table tbody tr:hover {
-      background-color: #F3F4F6 !important;
+    .summary-table {
+      margin-top: 12px;
+      margin-left: auto;
+      width: 300px;
     }
     
-    /* TOTAIS */
-    .totals-section {
-      margin-top: 20px;
+    .summary-row {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 12px;
+      border-bottom: 1px solid #e0e0e0;
     }
     
-    .totals-box {
-      min-width: 350px;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 18px;
+    .summary-label {
+      font-weight: 600;
+      color: #2b2b2b;
+    }
+    
+    .summary-value {
+      text-align: right;
+      color: #666;
+    }
+    
+    .summary-value.discount {
+      color: #00a86b;
+    }
+    
+    .summary-value.tax {
+      color: #3b82f6;
     }
     
     .total-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #E5E7EB;
-    }
-    
-    .total-row:last-child {
-      border-bottom: none;
-      margin-top: 8px;
-      padding-top: 12px;
-      border-top: 2px solid #1E3A8A;
-    }
-    
-    .total-label {
-      font-size: 14px;
-      color: #374151;
-    }
-    
-    .total-value {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1F2937;
-      white-space: nowrap;
-    }
-    
-    .total-row:last-child .total-label {
+      padding: 12px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: #fff;
       font-size: 16px;
-      font-weight: bold;
-      color: #1E3A8A;
+      font-weight: 700;
+      border-radius: 4px;
+      margin-top: 8px;
     }
     
-    .total-row:last-child .total-value {
-      font-size: 18px;
-      font-weight: bold;
-      color: #1E3A8A;
+    .payment-section {
+      background: #bfdbfe;
+      padding: 16px;
+      border-radius: 4px;
+      margin-bottom: 0;
+      border-left: 4px solid #3b82f6;
+      margin-top: 12px;
     }
     
-    /* OBSERVAÇÕES */
-    .notes-section {
-      margin-top: 25px;
-      padding: 18px;
-      background: #FFFBEB;
-      border: 1px solid #FDE68A;
-      border-radius: 6px;
-    }
-    
-    .notes-title {
-      font-size: 13px;
-      font-weight: bold;
-      color: #92400E;
-      margin-bottom: 8px;
-    }
-    
-    .notes-text {
+    .payment-terms {
       font-size: 12px;
-      color: #78350F;
-      line-height: 1.5;
+      color: #2b2b2b;
+      line-height: 1.8;
     }
     
-    /* TERMOS */
-    .terms-section {
-      margin-top: 20px;
-      padding: 18px;
-      background: #F3F4F6;
-      border: 1px solid #D1D5DB;
-      border-radius: 6px;
-    }
-    
-    .terms-title {
-      font-size: 13px;
-      font-weight: bold;
-      color: #374151;
-      margin-bottom: 8px;
-    }
-    
-    .terms-text {
-      font-size: 11px;
-      color: #6B7280;
-      line-height: 1.6;
-    }
-    
-    /* RODAPÉ */
     .footer {
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid #E5E7EB;
-      text-align: center;
-      color: #9CA3AF;
-      font-size: 11px;
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 2px solid #3b82f6;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
     }
     
-    /* IMPRESSÃO */
-    @media print {
-      body {
-        padding: 0;
-      }
-      
-      .container {
-        max-width: 100%;
-      }
-      
-      .section {
-        page-break-inside: avoid;
-      }
+    .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #666;
+      margin: 8px 0;
+    }
+    
+    .footer-icon {
+      width: 32px;
+      height: 32px;
+      background: #3b82f6;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 10px;
+    }
+
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 100px;
+      color: rgba(59, 130, 246, 0.1);
+      font-weight: bold;
+      z-index: -1;
+      white-space: nowrap;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
+  ${quote.user?.plan?.name?.toLowerCase() === 'gratuito' ? '<div class="watermark">Aligned</div>' : ''}
+  
   <div class="container">
-    <!-- CABEÇALHO -->
+    <!-- Header -->
     <div class="header">
-      <div class="header-content">
+      <!-- Empresa Centralizada no Topo -->
+      <div class="company-header">
+        <div class="company-header-content">
+          ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : `<div class="company-name">${companyName}</div>`}
+        </div>
+      </div>
+      
+      <!-- Orçamento e Data à Esquerda -->
+      <div class="header-top">
         <div class="company-info">
-          ${companyLogo ? `<img src="${companyLogo}" alt="Logo da Empresa" class="company-logo">` : ''}
-          <div class="company-details">
-            <div class="company-name">${companyName}</div>
-            ${companyEmail ? `<div class="company-contact">✉ ${companyEmail}</div>` : ''}
-            ${companyPhone ? `<div class="company-contact">📞 ${companyPhone}</div>` : ''}
-          </div>
+          <div class="document-title">ORÇAMENTO #${quoteId}</div>
+          <div class="document-date">${createdAt}</div>
         </div>
-        
-        ${clientLogo ? `
-        <div class="client-logo-container">
-          <img src="${clientLogo}" alt="Logo do Cliente" class="client-logo">
-        </div>
-        ` : ''}
-      </div>
-      
-      <div class="document-title">Orçamento</div>
-    </div>
-    
-    <!-- INFORMAÇÕES DO DOCUMENTO -->
-    <div class="document-info">
-      <div class="info-group">
-        <div class="info-label">Número</div>
-        <div class="info-value">#${quote.id?.substring(0, 8).toUpperCase() || 'N/A'}</div>
-      </div>
-      
-      <div class="info-group">
-        <div class="info-label">Data de Emissão</div>
-        <div class="info-value">${createdAt || 'N/A'}</div>
-      </div>
-      
-      ${validUntil ? `
-      <div class="info-group">
-        <div class="info-label">Válido Até</div>
-        <div class="info-value">${validUntil}</div>
-      </div>
-      ` : ''}
-      
-      <div class="info-group">
-        <div class="info-label">Status</div>
-        <div class="status-badge">${status.label}</div>
       </div>
     </div>
     
-    <!-- DADOS DO CLIENTE -->
+    <!-- Cliente -->
     <div class="section">
-      <div class="section-title">Dados do Cliente</div>
-      <div class="section-content">
-        <div class="field-row">
-          <div class="field-label">Nome:</div>
-          <div class="field-value">${clientName}</div>
+      <div class="info-block">
+        <div class="info-row">
+          <span class="info-label"><strong>A/C:</strong></span>
+          <span class="info-value">${clientName}</span>
         </div>
-        <div class="field-row">
-          <div class="field-label">E-mail:</div>
-          <div class="field-value">${clientEmail}</div>
+        <div class="info-row">
+          <span class="info-label"><strong>E-mail:</strong></span>
+          <span class="info-value">${clientEmail}</span>
         </div>
-        <div class="field-row">
-          <div class="field-label">Telefone:</div>
-          <div class="field-value">${clientPhone}</div>
+        <div class="info-row">
+          <span class="info-label"><strong>Telefone:</strong></span>
+          <span class="info-value">${clientPhone}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label"><strong>Endereço:</strong></span>
+          <span class="info-value">${clientAddress}</span>
         </div>
       </div>
     </div>
     
-    <!-- DESCRIÇÃO -->
+    <!-- Tabela de Serviços -->
     <div class="section">
-      <div class="section-title">Descrição</div>
-      <div class="description-content">
-        <div class="description-title">${escapeHtml(quote.title || 'Sem título')}</div>
-        ${quote.description ? `<div class="description-text">${escapeHtml(quote.description)}</div>` : ''}
-      </div>
-    </div>
-    
-    <!-- ITENS DO ORÇAMENTO -->
-    <div class="section">
-      <div class="section-title">Itens do Orçamento</div>
-      
-      <table class="items-table">
+      <div class="section-title">SERVIÇOS</div>
+      <table>
         <thead>
           <tr>
-            <th>Descrição</th>
-            <th style="text-align: center;">Qtd</th>
-            <th style="text-align: right;">Valor Unit.</th>
-            <th style="text-align: right;">Total</th>
+            <th>SERVIÇO</th>
+            <th>DESCRIÇÃO</th>
+            <th style="text-align: right;">VALOR</th>
+            ${hasItemDiscount ? '<th style="text-align: right; width: 80px;">DESCONTO</th>' : ''}
+            ${hasItemTax ? '<th style="text-align: right; width: 80px;">TRIBUTO</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -563,61 +454,113 @@ function generateQuotePDFTemplate(quote) {
         </tbody>
       </table>
       
-      <!-- TOTAIS -->
-      <div class="totals-section">
-        <div class="totals-box">
-          <div class="total-row">
-            <div class="total-label">Subtotal:</div>
-            <div class="total-value">${formatCurrency(subtotal)}</div>
-          </div>
-          
-          ${discount > 0 ? `
-          <div class="total-row">
-            <div class="total-label">Desconto:</div>
-            <div class="total-value">- ${formatCurrency(discount)}</div>
-          </div>
-          ` : ''}
-          
-          ${tax > 0 ? `
-          <div class="total-row">
-            <div class="total-label">Impostos/Taxas:</div>
-            <div class="total-value">+ ${formatCurrency(tax)}</div>
-          </div>
-          ` : ''}
-          
-          <div class="total-row">
-            <div class="total-label">Total:</div>
-            <div class="total-value">${formatCurrency(total)}</div>
-          </div>
+      <!-- Resumo de Valores -->
+      <div class="summary-table">
+        <div class="summary-row">
+          <span class="summary-label">Subtotal:</span>
+          <span class="summary-value">${formatCurrency(subtotal)}</span>
+        </div>
+        ${discount > 0 ? `
+        <div class="summary-row">
+          <span class="summary-label">Desconto:</span>
+          <span class="summary-value discount">-${formatCurrency(discount)}</span>
+        </div>
+        ` : ''}
+        ${tax > 0 ? `
+        <div class="summary-row">
+          <span class="summary-label">Impostos/Tributos:</span>
+          <span class="summary-value tax">+${formatCurrency(tax)}</span>
+        </div>
+        ` : ''}
+        <div class="total-row">
+          <span>TOTAL:</span>
+          <span>${formatCurrency(total)}</span>
         </div>
       </div>
     </div>
     
-    <!-- OBSERVAÇÕES -->
-    ${quote.notes ? `
-    <div class="notes-section">
-      <div class="notes-title">⚠️ Observações</div>
-      <div class="notes-text">${escapeHtml(quote.notes)}</div>
+    <!-- Forma de Pagamento -->
+    ${quote.paymentTerms ? `
+    <div class="section">
+      <div class="section-title">FORMA DE PAGAMENTO</div>
+      <div class="payment-section">
+        <div class="payment-terms">
+          ${escapeHtml(quote.paymentTerms)}
+        </div>
+      </div>
     </div>
     ` : ''}
     
-    <!-- TERMOS E CONDIÇÕES -->
+    <!-- Termos e Condições -->
     ${quote.termsConditions ? `
-    <div class="terms-section">
-      <div class="terms-title">📄 Termos e Condições</div>
-      <div class="terms-text">${escapeHtml(quote.termsConditions)}</div>
+    <div class="section">
+      <div class="section-title">TERMOS E CONDIÇÕES</div>
+      <div class="payment-section">
+        <div class="payment-terms">
+          ${escapeHtml(quote.termsConditions)}
+        </div>
+      </div>
     </div>
     ` : ''}
     
-    <!-- RODAPÉ -->
+    <!-- Observações -->
+    ${quote.notes ? `
+    <div class="section">
+      <div class="section-title">OBSERVAÇÕES</div>
+      <div class="payment-section">
+        <div class="payment-terms">
+          ${escapeHtml(quote.notes)}
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    <!-- Informações Adicionais -->
+    ${quote.additionalInfo ? `
+    <div class="section">
+      <div class="section-title">INFORMAÇÕES ADICIONAIS</div>
+      <div class="payment-section">
+        <div class="payment-terms">
+          ${escapeHtml(quote.additionalInfo)}
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    <!-- Footer -->
     <div class="footer">
-      <p>Documento gerado automaticamente pelo Sistema de Orçamentos</p>
-      <p>Data de geração: ${new Date().toLocaleString('pt-BR')}</p>
+      ${companyEmail ? `
+      <div class="footer-item">
+        <div class="footer-icon">@</div>
+        <a href="mailto:${companyEmail}" style="color: #666; text-decoration: none; cursor: pointer;">
+          ${companyEmail}
+        </a>
+      </div>
+      ` : ''}
+      
+      ${companyPhone ? `
+      <div class="footer-item">
+        <div class="footer-icon">☎</div>
+        <a href="https://wa.me/${companyPhone.replace(/\D/g, '')}" style="color: #666; text-decoration: none; cursor: pointer;">
+          ${companyPhone}
+        </a>
+      </div>
+      ` : ''}
+      
+      ${companyWebsite ? `
+      <div class="footer-item">
+        <div class="footer-icon">🌐</div>
+        <a href="https://${companyWebsite.replace(/^https?:\/\//, '')}" style="color: #666; text-decoration: none; cursor: pointer;">
+          ${companyWebsite}
+        </a>
+      </div>
+      ` : ''}
     </div>
   </div>
 </body>
 </html>
-  `.trim();
+  `;
 }
 
 module.exports = { generateQuotePDFTemplate };
+
