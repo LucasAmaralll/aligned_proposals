@@ -149,6 +149,8 @@ class UserController {
 
   async getStats(req, res) {
     try {
+      const { clientId } = req.query;
+      
       const stats = await prisma.user.findUnique({
         where: { id: req.userId },
         select: {
@@ -162,28 +164,41 @@ class UserController {
           _count: {
             select: {
               clients: true,
-              quotes: true
+              quotes: clientId ? false : true  // Se filtrar por cliente, não conta total
             }
           }
         }
       });
 
+      // Se filtrou por cliente, contar só os orçamentos desse cliente
+      let quoteFilter = { userId: req.userId };
+      if (clientId) {
+        quoteFilter.clientId = clientId;
+      }
+
       // Buscar orçamentos por status
       const quotesByStatus = await prisma.quote.groupBy({
         by: ['status'],
-        where: { userId: req.userId },
+        where: quoteFilter,
         _count: true
       });
 
       const statusCounts = {
         pending: 0,
         approved: 0,
-        rejected: 0
+        rejected: 0,
+        no_return: 0
       };
 
       quotesByStatus.forEach(item => {
         statusCounts[item.status] = item._count;
       });
+
+      // Se filtrou por cliente, contar orçamentos desse cliente
+      if (clientId) {
+        const totalQuotes = await prisma.quote.count({ where: quoteFilter });
+        stats._count.quotes = totalQuotes;
+      }
 
       return res.json({
         ...stats,

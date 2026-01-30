@@ -48,6 +48,7 @@ export const getStatusColor = (status) => {
     pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300',
     approved: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
     rejected: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+    no_return: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300',
   };
   
   return colors[status] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
@@ -58,6 +59,7 @@ export const getStatusLabel = (status) => {
     pending: 'Pendente',
     approved: 'Aprovado',
     rejected: 'Rejeitado',
+    no_return: 'Sem Retorno',
   };
   
   return labels[status] || status;

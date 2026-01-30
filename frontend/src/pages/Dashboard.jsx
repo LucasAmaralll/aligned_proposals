@@ -15,21 +15,43 @@ import {
   XCircleIcon,
   ClockIcon,
   ChartBarIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState('all');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchStats();
+    fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    try {
+      const response = await api.get('/clients');
+      const clientsData = response.data?.clients || response.data || [];
+      setClients(Array.isArray(clientsData) ? clientsData : []);
+    } catch (error) {
+      console.error('Erro ao buscar clientes:', error);
+      setClients([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [selectedClient]);
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/users/stats');
+      const url = selectedClient === 'all' 
+        ? '/users/stats' 
+        : `/users/stats?clientId=${selectedClient}`;
+      const response = await api.get(url);
       setStats(response.data);
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
@@ -146,6 +168,23 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* Cliente Filter */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Filtrar por Cliente</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Todos os clientes</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Stats grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             <StatCard
@@ -172,15 +211,81 @@ const Dashboard = () => {
               icon={ClockIcon}
               color="bg-yellow-500"
             />
+            <StatCard
+              title="Reprovados"
+              value={stats?.quotesByStatus?.rejected || 0}
+              icon={XCircleIcon}
+              color="bg-red-500"
+            />
+            <StatCard
+              title="Sem Retorno"
+              value={stats?.quotesByStatus?.no_return || 0}
+              icon={NoSymbolIcon}
+              color="bg-gray-500"
+            />
           </div>
 
-          {/* Charts placeholder */}
+          {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bar Chart */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Orçamentos por Status</h3>
-              <div className="flex items-center justify-center h-64">
-                <ChartBarIcon className="w-16 h-16 text-gray-300 dark:text-gray-600" />
-                <p className="text-gray-400 dark:text-gray-500 ml-4">Gráfico em breve</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-8">Orçamentos por Status</h3>
+              <div className="space-y-6">
+                {/* Pending Bar */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Pendentes</p>
+                    <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{stats?.quotesByStatus?.pending || 0}</p>
+                  </div>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-yellow-500 h-2 transition-all duration-300"
+                      style={{ width: `${(stats?.quotesByStatus?.pending || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Approved Bar */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Aprovados</p>
+                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{stats?.quotesByStatus?.approved || 0}</p>
+                  </div>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-green-500 h-2 transition-all duration-300"
+                      style={{ width: `${(stats?.quotesByStatus?.approved || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Rejected Bar */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Reprovados</p>
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{stats?.quotesByStatus?.rejected || 0}</p>
+                  </div>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-red-500 h-2 transition-all duration-300"
+                      style={{ width: `${(stats?.quotesByStatus?.rejected || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* No Return Bar */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Sem Retorno</p>
+                    <p className="text-sm font-bold text-gray-600 dark:text-gray-400">{stats?.quotesByStatus?.no_return || 0}</p>
+                  </div>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-gray-500 h-2 transition-all duration-300"
+                      style={{ width: `${(stats?.quotesByStatus?.no_return || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -203,11 +308,19 @@ const Dashboard = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center justify-between py-3">
+                <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center space-x-3">
                     <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       {stats?.quotesByStatus?.rejected || 0} orçamentos rejeitados
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {stats?.quotesByStatus?.no_return || 0} orçamentos sem retorno
                     </span>
                   </div>
                 </div>

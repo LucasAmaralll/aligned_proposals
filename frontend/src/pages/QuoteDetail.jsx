@@ -21,6 +21,7 @@ const QuoteDetail = () => {
   const navigate = useNavigate();
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [emailModal, setEmailModal] = useState(false);
   const [emailData, setEmailData] = useState({ email: '', message: '' });
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -54,6 +55,11 @@ const QuoteDetail = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      // Redirecionar para página de orçamentos após 1 segundo
+      setTimeout(() => {
+        navigate('/quotes');
+      }, 1000);
     } catch (error) {
       console.error('Erro ao baixar PDF:', error);
       alert('Erro ao baixar PDF');
@@ -66,8 +72,8 @@ const QuoteDetail = () => {
       return;
     }
 
-    const publicUrl = `${process.env.REACT_APP_PUBLIC_URL}/view/${quote.publicToken}`;
-    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${publicUrl}\n\nQualquer dúvida estou à disposição!`;
+    const pdfUrl = `${window.location.origin}/quotes/pdf/public/${quote.publicToken}`;
+    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${pdfUrl}\n\nQualquer dúvida estou à disposição!`;
     
     const whatsappUrl = generateWhatsAppLink(quote.client.phone, message);
     window.open(whatsappUrl, '_blank');
@@ -111,16 +117,20 @@ const QuoteDetail = () => {
 
   const handleStatusChange = async (newStatus) => {
     try {
+      setStatusLoading(true);
       const response = await api.put(`/quotes/${id}`, { status: newStatus });
       setQuote(response.data);
+      // Feedback visual de sucesso
+      setTimeout(() => setStatusLoading(false), 500);
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status');
+      setStatusLoading(false);
     }
   };
 
   const viewPublicUrl = () => {
-    const publicUrl = `${process.env.REACT_APP_PUBLIC_URL}/view/${quote.publicToken}`;
+    const publicUrl = `${window.location.origin}/view/${quote.publicToken}`;
     window.open(publicUrl, '_blank');
   };
 
@@ -295,6 +305,44 @@ const QuoteDetail = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Status actions - PRIMEIRO */}
+              <Card title="Alterar Status">
+                <div className="space-y-2">
+                  <Button
+                    variant={quote.status === 'pending' ? 'primary' : 'secondary'}
+                    className="w-full"
+                    onClick={() => handleStatusChange('pending')}
+                    disabled={statusLoading}
+                  >
+                    {statusLoading && quote.status === 'pending' ? 'Atualizando...' : 'Pendente'}
+                  </Button>
+                  <Button
+                    variant={quote.status === 'approved' ? 'success' : 'secondary'}
+                    className="w-full"
+                    onClick={() => handleStatusChange('approved')}
+                    disabled={statusLoading}
+                  >
+                    {statusLoading && quote.status === 'approved' ? 'Atualizando...' : 'Aprovado'}
+                  </Button>
+                  <Button
+                    variant={quote.status === 'rejected' ? 'danger' : 'secondary'}
+                    className="w-full"
+                    onClick={() => handleStatusChange('rejected')}
+                    disabled={statusLoading}
+                  >
+                    {statusLoading && quote.status === 'rejected' ? 'Atualizando...' : 'Rejeitado'}
+                  </Button>
+                  <Button
+                    variant={quote.status === 'no_return' ? 'outline' : 'secondary'}
+                    className="w-full"
+                    onClick={() => handleStatusChange('no_return')}
+                    disabled={statusLoading}
+                  >
+                    {statusLoading && quote.status === 'no_return' ? 'Atualizando...' : 'Sem Retorno'}
+                  </Button>
+                </div>
+              </Card>
+
               {/* Client info */}
               <Card title="Cliente">
                 <div className="space-y-3">
@@ -317,39 +365,12 @@ const QuoteDetail = () => {
                 </div>
               </Card>
 
-              {/* Status actions */}
-              <Card title="Alterar Status">
-                <div className="space-y-2">
-                  <Button
-                    variant={quote.status === 'pending' ? 'primary' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('pending')}
-                  >
-                    Pendente
-                  </Button>
-                  <Button
-                    variant={quote.status === 'approved' ? 'success' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('approved')}
-                  >
-                    Aprovado
-                  </Button>
-                  <Button
-                    variant={quote.status === 'rejected' ? 'danger' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('rejected')}
-                  >
-                    Rejeitado
-                  </Button>
-                </div>
-              </Card>
-
               {/* Share info */}
               <Card title="Compartilhar">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-xs text-gray-600 mb-2">Link público:</p>
                   <p className="text-xs font-mono bg-white p-2 rounded border border-gray-200 break-all">
-                    {process.env.REACT_APP_PUBLIC_URL}/view/{quote.publicToken}
+                    {window.location.origin}/view/{quote.publicToken}
                   </p>
                 </div>
               </Card>

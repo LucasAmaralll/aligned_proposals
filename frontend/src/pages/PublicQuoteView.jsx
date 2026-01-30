@@ -41,7 +41,8 @@ const PublicQuoteView = () => {
     );
   }
 
-  const items = JSON.parse(quote.items);
+  // Garantir que items seja um array
+  const items = Array.isArray(quote.items) ? quote.items : (typeof quote.items === 'string' ? JSON.parse(quote.items) : []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">

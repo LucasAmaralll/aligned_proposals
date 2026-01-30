@@ -8,6 +8,9 @@ const router = express.Router();
 // Rota pública para visualizar orçamento
 router.get('/public/:token', quoteController.getByToken);
 
+// Rota pública para baixar PDF
+router.get('/pdf/public/:token', quoteController.getPDFByToken);
+
 // Rotas protegidas
 router.use(authMiddleware);
 

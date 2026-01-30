@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { CalculatorIcon } from '@heroicons/react/24/outline';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Card from '../components/Card';
@@ -21,8 +20,6 @@ const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
 
   const [calculation, setCalculation] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [showMaterialCalculator, setShowMaterialCalculator] = useState(false);
-  const [currentMaterialIndex, setCurrentMaterialIndex] = useState(null);
 
   useEffect(() => {
     if (initialData) {
@@ -107,19 +104,6 @@ const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
     }));
   };
 
-  const handleMaterialCalculation = (calculatedCost) => {
-    if (currentMaterialIndex !== null) {
-      const updated = [...formData.rawMaterials];
-      updated[currentMaterialIndex].cost = calculatedCost.toFixed(2);
-      setFormData((prev) => ({ ...prev, rawMaterials: updated }));
-    }
-  };
-
-  const openMaterialCalculator = (index) => {
-    setCurrentMaterialIndex(index);
-    setShowMaterialCalculator(true);
-  };
-
   return (
     <div className="space-y-6">
       {/* Formulário */}
@@ -166,14 +150,15 @@ const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
                   onChange={(e) => handleRawMaterialChange(index, 'cost', e.target.value)}
                   placeholder="0.00"
                 />
-                <button
-                  type="button"
-                  onClick={() => openMaterialCalculator(index)}
-                  className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                >
-                  <CalculatorIcon className="w-4 h-4" />
-                  Calcular custo proporcional
-                </button>
+                <div className="mt-1">
+                  <MaterialCalculator 
+                    onCalculate={(cost) => {
+                      const updated = [...formData.rawMaterials];
+                      updated[index].cost = cost.toFixed(2);
+                      setFormData((prev) => ({ ...prev, rawMaterials: updated }));
+                    }}
+                  />
+                </div>
               </div>
               <div className={index === 0 ? 'mt-8' : ''}>
                 <Button
@@ -439,13 +424,6 @@ const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
           </div>
         </Card>
       )}
-
-      {/* Modal Calculadora de Material */}
-      <MaterialCalculator
-        isOpen={showMaterialCalculator}
-        onClose={() => setShowMaterialCalculator(false)}
-        onCalculate={handleMaterialCalculation}
-      />
     </div>
   );
 };

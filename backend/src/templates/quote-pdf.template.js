@@ -177,7 +177,7 @@ function generateQuotePDFTemplate(quote) {
     .company-name {
       font-size: 16px;
       font-weight: 700;
-      color: #1d4ed8;
+      color: black;
       margin-bottom: 0;
       text-transform: uppercase;
       letter-spacing: 1px;

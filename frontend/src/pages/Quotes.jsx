@@ -7,7 +7,9 @@ import {
   DocumentTextIcon,
   PencilIcon,
   ChatBubbleLeftRightIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  CheckIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
 import Loading from '../components/Loading';
@@ -24,6 +26,10 @@ const Quotes = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [pdfLoadingId, setPdfLoadingId] = useState(null);
+  const [pdfCache, setPdfCache] = useState({});
+  const [statusDropdownId, setStatusDropdownId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   const quotesRemaining = () => {
     if (!user?.plan?.quotesLimit || user.plan.quotesLimit === -1) {
@@ -77,15 +83,44 @@ const Quotes = () => {
       return;
     }
 
-    const publicUrl = `${window.location.origin}/view/${quote.publicToken}`;
-    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${publicUrl}\n\nQualquer dúvida estou à disposição!`;
+    // Usar window.location.origin para garantir que o link é absoluto e correto
+    const pdfUrl = `${window.location.origin}/quotes/pdf/public/${quote.publicToken}`;
+    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${pdfUrl}\n\nQualquer dúvida estou à disposição!`;
     
     const whatsappUrl = generateWhatsAppLink(quote.client.phone, message);
     window.open(whatsappUrl, '_blank');
   };
 
+  const handleChangeStatus = async (quoteId, newStatus) => {
+    try {
+      setUpdatingStatusId(quoteId);
+      const response = await api.put(`/quotes/${quoteId}`, { status: newStatus });
+      
+      // Atualizar lista local com resposta do servidor
+      setQuotes(quotes.map(q => 
+        q.id === quoteId ? response.data : q
+      ));
+      
+      setStatusDropdownId(null);
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      alert('Erro ao atualizar status: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   const handleViewPDF = async (quoteId) => {
     try {
+      setPdfLoadingId(quoteId);
+      
+      // Verificar cache
+      if (pdfCache[quoteId]) {
+        window.open(pdfCache[quoteId], '_blank');
+        setPdfLoadingId(null);
+        return;
+      }
+      
       const response = await api.get(`/quotes/${quoteId}/pdf`, {
         responseType: 'blob',
       });
@@ -93,14 +128,26 @@ const Quotes = () => {
       // Criar URL temporária para o blob
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       
+      // Armazenar em cache
+      setPdfCache(prev => ({ ...prev, [quoteId]: url }));
+      
       // Abrir em nova aba
       window.open(url, '_blank');
       
-      // Limpar URL após um tempo
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      // Limpar URL após 5 minutos (ao invés de 100ms)
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        setPdfCache(prev => {
+          const newCache = { ...prev };
+          delete newCache[quoteId];
+          return newCache;
+        });
+      }, 5 * 60 * 1000);
     } catch (error) {
       console.error('Erro ao visualizar PDF:', error);
       alert('Erro ao visualizar PDF');
+    } finally {
+      setPdfLoadingId(null);
     }
   };
 
@@ -185,9 +232,50 @@ const Quotes = () => {
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                             {quote.title}
                           </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(quote.status)}`}>
-                            {getStatusLabel(quote.status)}
-                          </span>
+                          
+                          {/* Status com dropdown */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setStatusDropdownId(statusDropdownId === quote.id ? null : quote.id)}
+                              disabled={updatingStatusId === quote.id}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity ${getStatusColor(quote.status)}`}
+                            >
+                              {getStatusLabel(quote.status)}
+                            </button>
+                            
+                            {statusDropdownId === quote.id && (
+                              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-10 min-w-max">
+                                <button
+                                  onClick={() => handleChangeStatus(quote.id, 'pending')}
+                                  disabled={updatingStatusId === quote.id}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                                >
+                                  Pendente
+                                </button>
+                                <button
+                                  onClick={() => handleChangeStatus(quote.id, 'approved')}
+                                  disabled={updatingStatusId === quote.id}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                                >
+                                  Aprovado
+                                </button>
+                                <button
+                                  onClick={() => handleChangeStatus(quote.id, 'rejected')}
+                                  disabled={updatingStatusId === quote.id}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                                >
+                                  Rejeitado
+                                </button>
+                                <button
+                                  onClick={() => handleChangeStatus(quote.id, 'no_return')}
+                                  disabled={updatingStatusId === quote.id}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                                >
+                                  Sem Retorno
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
                         <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
@@ -212,10 +300,11 @@ const Quotes = () => {
                         <div className="mt-4 flex gap-2 flex-wrap">
                           <button
                             onClick={() => handleViewPDF(quote.id)}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                            disabled={pdfLoadingId === quote.id}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <EyeIcon className="h-4 w-4" />
-                            Visualizar PDF
+                            {pdfLoadingId === quote.id ? 'Carregando...' : 'Visualizar PDF'}
                           </button>
                           <button
                             onClick={() => navigate(`/quotes/${quote.id}/edit`)}

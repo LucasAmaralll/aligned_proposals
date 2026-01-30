@@ -142,6 +142,32 @@ class QuoteController {
         prisma.quote.count({ where })
       ]);
 
+      // Verificar e atualizar status para no_return se passou da data de vencimento
+      const now = new Date();
+      const quotesToUpdate = [];
+      
+      for (const quote of quotes) {
+        if (quote.validUntil && quote.status !== 'rejected' && quote.status !== 'no_return') {
+          const validUntilDate = new Date(quote.validUntil);
+          if (now > validUntilDate) {
+            quotesToUpdate.push(quote.id);
+            quote.status = 'no_return';
+          }
+        }
+      }
+
+      // Atualizar em batch no banco
+      if (quotesToUpdate.length > 0) {
+        await Promise.all(
+          quotesToUpdate.map(quoteId =>
+            prisma.quote.update({
+              where: { id: quoteId },
+              data: { status: 'no_return' }
+            }).catch(err => console.error('Erro ao atualizar status:', err))
+          )
+        );
+      }
+
       // Parse items de JSON string para array em todos os quotes
       quotes.forEach(quote => {
         if (quote.items && typeof quote.items === 'string') {
@@ -183,6 +209,21 @@ class QuoteController {
 
       if (!quote) {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
+      }
+
+      // Verificar se passou da data de vencimento e ainda está pendente/aprovado
+      if (quote.validUntil && quote.status !== 'rejected' && quote.status !== 'no_return') {
+        const now = new Date();
+        const validUntilDate = new Date(quote.validUntil);
+        
+        if (now > validUntilDate) {
+          // Atualizar para no_return
+          await prisma.quote.update({
+            where: { id },
+            data: { status: 'no_return' }
+          });
+          quote.status = 'no_return';
+        }
       }
 
       // Parse items de JSON string para array
@@ -239,6 +280,59 @@ class QuoteController {
     }
   }
 
+  async getPDFByToken(req, res) {
+    try {
+      const { token } = req.params;
+
+      const quote = await prisma.quote.findUnique({
+        where: { publicToken: token },
+        include: {
+          client: true,
+          user: {
+            include: { plan: true }
+          }
+        }
+      });
+
+      if (!quote) {
+        return res.status(404).json({ error: 'Orçamento não encontrado' });
+      }
+
+      // Parse items de JSON string para array
+      if (quote.items && typeof quote.items === 'string') {
+        quote.items = JSON.parse(quote.items);
+      }
+
+      console.log('📋 Gerando PDF para orçamento público:', quote.id);
+
+      // Gerar PDF usando template HTML + Puppeteer
+      const pdfBuffer = await pdfService.generateQuotePDFFromHTML(quote);
+
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('PDF gerado está vazio');
+      }
+
+      console.log('✅ PDF gerado com sucesso, enviando para cliente');
+
+      // Configurar headers corretos para PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.setHeader('Content-Disposition', `attachment; filename="orcamento-${quote.id.substring(0, 8)}.pdf"`);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      // Enviar buffer binário
+      res.end(pdfBuffer, 'binary');
+    } catch (error) {
+      console.error('❌ Erro ao gerar PDF público:', error);
+      return res.status(500).json({ 
+        error: 'Erro ao gerar PDF',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
   async update(req, res) {
     try {
       const { id } = req.params;
@@ -256,21 +350,41 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
-      // Recalcular valores se itens foram alterados
-      // IMPORTANTE: Sempre voltar para 'pending' ao editar
+      // Se apenas status está sendo atualizado (nenhum outro campo foi fornecido), apenas atualizar o status
+      if (status && !title && !description && !items && !discount && !tax && !notes && !termsConditions && !paymentTerms && !internalNotes && !additionalInfo && validUntil === undefined) {
+        const quote = await prisma.quote.update({
+          where: { id },
+          data: { status },
+          include: {
+            client: true,
+            user: {
+              include: { plan: true }
+            }
+          }
+        });
+
+        // Parse items de JSON string para array
+        if (quote.items && typeof quote.items === 'string') {
+          quote.items = JSON.parse(quote.items);
+        }
+
+        return res.json(quote);
+      }
+
+      // Caso contrário, atualizar os dados e resetar status para pendente
       let updateData = {
-        title,
-        description,
-        idExt,
-        notes,
-        termsConditions,
-        paymentTerms,
-        internalNotes,
-        additionalInfo,
-        validUntil: validUntil ? new Date(validUntil) : null,
-        status: 'pending' // Sempre resetar para pendente ao editar
+        ...(title !== undefined && { title }),
+        ...(description !== undefined && { description }),
+        ...(idExt !== undefined && { idExt }),
+        ...(notes !== undefined && { notes }),
+        ...(termsConditions !== undefined && { termsConditions }),
+        ...(paymentTerms !== undefined && { paymentTerms }),
+        ...(internalNotes !== undefined && { internalNotes }),
+        ...(additionalInfo !== undefined && { additionalInfo }),
+        ...(validUntil !== undefined && { validUntil: validUntil ? new Date(validUntil) : null }),
       };
 
+      // Se itens foram alterados, recalcular totais e resetar para pendente
       if (items) {
         const subtotal = items.reduce((sum, item) => {
           return sum + (parseFloat(item.unitPrice || 0) * parseFloat(item.quantity || 0));
@@ -286,7 +400,8 @@ class QuoteController {
           subtotal,
           discount: discountValue,
           tax: taxValue,
-          total
+          total,
+          status: 'pending' // Resetar para pendente ao alterar itens
         };
       }
 

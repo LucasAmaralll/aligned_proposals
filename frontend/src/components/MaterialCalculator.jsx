@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { InformationCircleIcon, CalculatorIcon } from '@heroicons/react/24/outline';
+import { CalculatorIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import Input from './Input';
 import Button from './Button';
 
-function MaterialCalculator({ isOpen, onClose, onCalculate }) {
+function MaterialCalculator({ onCalculate }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [purchaseData, setPurchaseData] = useState({
     purchaseQuantity: '',
     purchaseUnit: 'kg',
@@ -60,16 +61,32 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
       usedUnit: 'g'
     });
     setCalculatedCost(null);
-    onClose();
+    setIsOpen(false);
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Calculadora de Matéria-Prima">
+    <>
+      {/* Botão para abrir a calculadora */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+      >
+        <CalculatorIcon className="w-5 h-5" />
+        Calcular custo proporcional
+      </button>
+
+      {/* Modal da calculadora */}
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title="Calculadora de Matéria-Prima"
+      >
       <div className="space-y-4">
         {/* Informações */}
         <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 p-4">
           <div className="flex">
-            <InformationCircleIcon className="h-5 w-5 text-blue-400 flex-shrink-0" />
+            <CalculatorIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div className="ml-3">
               <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Como usar:</h3>
               <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
@@ -213,7 +230,8 @@ function MaterialCalculator({ isOpen, onClose, onCalculate }) {
           </Button>
         </div>
       </div>
-    </Modal>
+      </Modal>
+    </>
   );
 }
 

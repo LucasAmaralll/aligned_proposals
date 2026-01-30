@@ -86,7 +86,7 @@ model Quote {
   idExt           String?     // ID customizado do usuário (ex: "1", "2024-001")
   title           String
   description     String?
-  status          String      @default("pending") // pending, approved, rejected
+  status          String      @default("pending") // pending, approved, rejected, no_return
   deletionStatus  Int         @default(1) // 1 = ativo, -3 = inativo/deletado
   
   // Dados do orçamento

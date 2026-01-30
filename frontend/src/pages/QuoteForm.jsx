@@ -234,10 +234,35 @@ const QuoteForm = () => {
         validUntil: formData.validUntil || null
       };
       
+      let quoteId;
       if (isEdit) {
         await api.put(`/quotes/${id}`, payload);
+        quoteId = id;
       } else {
-        await api.post('/quotes', payload);
+        const response = await api.post('/quotes', payload);
+        quoteId = response.data.id;
+      }
+
+      // Se for novo orçamento (não edição), gerar PDF automaticamente
+      if (!isEdit) {
+        try {
+          const pdfResponse = await api.get(`/quotes/${quoteId}/pdf`, {
+            responseType: 'blob',
+          });
+          
+          // Criar URL e fazer download
+          const url = window.URL.createObjectURL(new Blob([pdfResponse.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `orcamento-${quoteId}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (pdfError) {
+          console.error('Erro ao gerar PDF:', pdfError);
+          // Continuar mesmo se erro ao gerar PDF
+        }
       }
       
       navigate('/quotes');

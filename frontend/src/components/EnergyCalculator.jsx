@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { InformationCircleIcon, CalculatorIcon } from '@heroicons/react/24/outline';
+import { CalculatorIcon } from '@heroicons/react/24/outline';
 import Modal from './Modal';
 import Button from './Button';
 import Input from './Input';
@@ -80,12 +80,12 @@ const EnergyCalculator = ({ onCalculate }) => {
       >
         <div className="space-y-4">
           {/* Informações */}
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+          <div className="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-400 p-4">
             <div className="flex">
-              <InformationCircleIcon className="h-5 w-5 text-blue-400 flex-shrink-0" />
+              <CalculatorIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Como usar:</h3>
-                <div className="mt-2 text-sm text-blue-700">
+                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Como usar:</h3>
+                <div className="mt-2 text-sm text-blue-700 dark:text-blue-400">
                   <ul className="list-disc list-inside space-y-1">
                     <li>Informe a potência do equipamento em Watts (ex: 1000W)</li>
                     <li>Informe quanto tempo o equipamento fica ligado em horas</li>
@@ -97,9 +97,9 @@ const EnergyCalculator = ({ onCalculate }) => {
           </div>
 
           {/* Exemplos de potência */}
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Exemplos de potência:</p>
-            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+          <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+            <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Exemplos de potência:</p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
               <div>• Forno elétrico: 1500W</div>
               <div>• Computador: 300W</div>
               <div>• Lâmpada LED: 10W</div>
@@ -146,18 +146,18 @@ const EnergyCalculator = ({ onCalculate }) => {
 
           {/* Resultado */}
           {resultado && (
-            <div className="mt-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
-              <h4 className="text-sm font-semibold text-green-800 mb-3">Resultado:</h4>
+            <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/30 border-2 border-green-200 dark:border-green-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-green-800 dark:text-green-300 mb-3">Resultado:</h4>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-green-700">Consumo:</span>
-                  <span className="text-lg font-bold text-green-900">
+                  <span className="text-sm text-green-700 dark:text-green-400">Consumo:</span>
+                  <span className="text-lg font-bold text-green-900 dark:text-green-100">
                     {resultado.consumoKwh} kWh
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-green-200">
-                  <span className="text-sm text-green-700">Custo Total:</span>
-                  <span className="text-xl font-bold text-green-900">
+                <div className="flex justify-between items-center pt-2 border-t border-green-200 dark:border-green-700">
+                  <span className="text-sm text-green-700 dark:text-green-400">Custo Total:</span>
+                  <span className="text-xl font-bold text-green-900 dark:text-green-100">
                     R$ {resultado.custoTotal}
                   </span>
                 </div>
