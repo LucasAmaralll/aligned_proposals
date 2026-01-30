@@ -184,7 +184,7 @@ function generateQuotePDFTemplate(quote) {
     }
     
     .logo {
-      max-height: 50px;
+      max-height: 120px;
       max-width: 120px;
       object-fit: contain;
       margin-bottom: 0;
@@ -192,8 +192,8 @@ function generateQuotePDFTemplate(quote) {
     
     .document-title {
       font-size: 20px;
-      font-weight: 700;
-      color: #1d4ed8;
+      font-weight: bold;
+      color: black;
       margin-top: 0;
       letter-spacing: 1px;
       margin-bottom: 0;
@@ -214,9 +214,8 @@ function generateQuotePDFTemplate(quote) {
     .section-title {
       font-size: 13px;
       font-weight: 700;
-      color: #3b82f6;
+      color: black;
       text-transform: uppercase;
-      margin-bottom: 12px;
       letter-spacing: 1px;
       padding-bottom: 0;
       border-bottom: none;
@@ -249,19 +248,22 @@ function generateQuotePDFTemplate(quote) {
     }
     
     .info-value {
-      color: #666;
+      color: #2b2b2b;
     }
     
+    .table-wrapper {
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden; /* corta as bordas da tabela dentro */
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 0;
-      border: 1px solid #e0e0e0;
-      margin-top: 12px;
     }
     
     thead {
-      background: #3b82f6;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
     }
     
     th {
@@ -270,7 +272,6 @@ function generateQuotePDFTemplate(quote) {
       font-size: 12px;
       font-weight: 600;
       color: #fff;
-      border-bottom: 2px solid #3b82f6;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -308,15 +309,15 @@ function generateQuotePDFTemplate(quote) {
     
     .summary-value {
       text-align: right;
-      color: #666;
+      color: #555;
     }
     
     .summary-value.discount {
-      color: #00a86b;
+      color: #039b5e;
     }
     
     .summary-value.tax {
-      color: #3b82f6;
+      color: #e50b0b;
     }
     
     .total-row {
@@ -438,21 +439,22 @@ function generateQuotePDFTemplate(quote) {
     
     <!-- Tabela de Serviços -->
     <div class="section">
-      <div class="section-title">SERVIÇOS</div>
-      <table>
-        <thead>
-          <tr>
-            <th>SERVIÇO</th>
-            <th>DESCRIÇÃO</th>
-            <th style="text-align: right;">VALOR</th>
-            ${hasItemDiscount ? '<th style="text-align: right; width: 80px;">DESCONTO</th>' : ''}
-            ${hasItemTax ? '<th style="text-align: right; width: 80px;">TRIBUTO</th>' : ''}
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHTML}
-        </tbody>
-      </table>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>SERVIÇO</th>
+              <th>DESCRIÇÃO</th>
+              <th style="text-align: right;">VALOR</th>
+              ${hasItemDiscount ? '<th style="text-align: right; width: 80px;">DESCONTO</th>' : ''}
+              ${hasItemTax ? '<th style="text-align: right; width: 80px;">TRIBUTO</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHTML}
+          </tbody>
+        </table>
+      </div>
       
       <!-- Resumo de Valores -->
       <div class="summary-table">
