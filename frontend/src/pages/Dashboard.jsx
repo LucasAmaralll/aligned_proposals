@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LockClosedIcon } from '@heroicons/react/24/solid';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import Layout from '../components/Layout';
 import Card from '../components/Card';
 import Loading from '../components/Loading';
@@ -227,65 +228,56 @@ const Dashboard = () => {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bar Chart */}
+            {/* Pie Chart */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-8">Orçamentos por Status</h3>
-              <div className="space-y-6">
-                {/* Pending Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Pendentes</p>
-                    <p className="text-sm font-bold text-yellow-600 dark:text-yellow-400">{stats?.quotesByStatus?.pending || 0}</p>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-yellow-500 h-2 transition-all duration-300"
-                      style={{ width: `${(stats?.quotesByStatus?.pending || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Approved Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Aprovados</p>
-                    <p className="text-sm font-bold text-green-600 dark:text-green-400">{stats?.quotesByStatus?.approved || 0}</p>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-green-500 h-2 transition-all duration-300"
-                      style={{ width: `${(stats?.quotesByStatus?.approved || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Rejected Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Reprovados</p>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400">{stats?.quotesByStatus?.rejected || 0}</p>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-red-500 h-2 transition-all duration-300"
-                      style={{ width: `${(stats?.quotesByStatus?.rejected || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* No Return Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Sem Retorno</p>
-                    <p className="text-sm font-bold text-gray-600 dark:text-gray-400">{stats?.quotesByStatus?.no_return || 0}</p>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-gray-500 h-2 transition-all duration-300"
-                      style={{ width: `${(stats?.quotesByStatus?.no_return || 0) / (Math.max(stats?.quotesByStatus?.pending, stats?.quotesByStatus?.approved, stats?.quotesByStatus?.rejected, stats?.quotesByStatus?.no_return, 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Orçamentos por Status</h3>
+              <div className="flex items-center justify-center h-64">
+                {stats?.quotesByStatus && (
+                  stats.quotesByStatus.pending === 0 && 
+                  stats.quotesByStatus.approved === 0 && 
+                  stats.quotesByStatus.rejected === 0 && 
+                  stats.quotesByStatus.no_return === 0
+                ) ? (
+                  <p className="text-gray-500 dark:text-gray-400">Nenhum orçamento cadastrado</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Pendentes', value: stats?.quotesByStatus?.pending || 0, fill: '#FBBF24' },
+                          { name: 'Aprovados', value: stats?.quotesByStatus?.approved || 0, fill: '#10B981' },
+                          { name: 'Reprovados', value: stats?.quotesByStatus?.rejected || 0, fill: '#EF4444' },
+                          { name: 'Sem Retorno', value: stats?.quotesByStatus?.no_return || 0, fill: '#9CA3AF' },
+                        ]}
+                        cx="50%"
+                        cy="45%"
+                        labelLine={false}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="#FBBF24" />
+                        <Cell fill="#10B981" />
+                        <Cell fill="#EF4444" />
+                        <Cell fill="#9CA3AF" />
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => `${value} orçamentos`}
+                        contentStyle={{ 
+                          backgroundColor: '#1F2937', 
+                          border: '1px solid #374151',
+                          borderRadius: '8px',
+                          color: '#F3F4F6'
+                        }} 
+                      />
+                      <Legend 
+                        verticalAlign="bottom"
+                        height={36}
+                        formatter={(value, entry) => `${entry.payload.name}: ${entry.payload.value}`}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
 
