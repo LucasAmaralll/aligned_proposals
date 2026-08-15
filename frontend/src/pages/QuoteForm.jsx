@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import Loading from '../components/Loading';
 import Typeahead from '../components/Typeahead';
 import api from '../services/api';
-import { formatClientNumber, formatCurrency } from '../utils/helpers';
+import { formatClientNumber, formatCurrency, formatDocument } from '../utils/helpers';
 
 const QuoteForm = () => {
   const navigate = useNavigate();
@@ -361,13 +361,20 @@ const QuoteForm = () => {
                         setSelectedClient(null);
                         setFormData({ ...formData, clientId: '' });
                       }}
-                      placeholder="Buscar cliente por nome, número ou CPF"
+                      placeholder="Buscar por nome, número, CPF ou CNPJ"
                       hint="Digite pelo menos 2 caracteres"
                       emptyText="Nenhum cliente encontrado"
                       renderOption={(client) => (
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          #{formatClientNumber(client.number)} · {client.name}
-                        </p>
+                        <div>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            #{formatClientNumber(client.number)} · {client.name}
+                          </p>
+                          {client.document && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatDocument(client.document)}
+                            </p>
+                          )}
+                        </div>
                       )}
                     />
                   </div>

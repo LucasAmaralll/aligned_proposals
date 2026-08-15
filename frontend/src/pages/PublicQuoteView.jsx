@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Loading from '../components/Loading';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, getQuoteItemUnitPrice, getStatusLabel } from '../utils/helpers';
 import axios from 'axios';
 
 const PublicQuoteView = () => {
@@ -62,7 +62,14 @@ const PublicQuoteView = () => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Orçamento Nº</p>
-              <p className="text-xl font-bold text-primary-600">{quote.id.substring(0, 8).toUpperCase()}</p>
+              <p className="text-xl font-bold text-gray-900">{quote.idExt || quote.id.substring(0, 8).toUpperCase()}</p>
+              <p className="text-sm text-gray-500 mt-2">{getStatusLabel(quote.status)}</p>
+              <a
+                href={`${process.env.REACT_APP_API_URL}/quotes/pdf/public/${token}`}
+                className="inline-block mt-3 text-sm font-medium text-gray-900 underline"
+              >
+                Baixar PDF
+              </a>
             </div>
           </div>
 
@@ -105,9 +112,9 @@ const PublicQuoteView = () => {
                   <tr key={index} className="border-b border-gray-100">
                     <td className="py-4 px-2 text-sm text-gray-800">{item.description}</td>
                     <td className="py-4 px-2 text-sm text-gray-800 text-center">{item.quantity}</td>
-                    <td className="py-4 px-2 text-sm text-gray-800 text-right">{formatCurrency(item.price)}</td>
+                    <td className="py-4 px-2 text-sm text-gray-800 text-right">{formatCurrency(getQuoteItemUnitPrice(item))}</td>
                     <td className="py-4 px-2 text-sm font-semibold text-gray-800 text-right">
-                      {formatCurrency(parseFloat(item.price) * parseInt(item.quantity))}
+                      {formatCurrency(getQuoteItemUnitPrice(item) * parseFloat(item.quantity || 0))}
                     </td>
                   </tr>
                 ))}

@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import Card from '../components/Card';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
 import Modal from '../components/Modal';
 import api from '../services/api';
-import { formatCurrency, formatDate, generateWhatsAppLink, getStatusColor, getStatusLabel } from '../utils/helpers';
+import {
+  formatCurrency,
+  formatDate,
+  formatDocument,
+  formatPhone,
+  generateWhatsAppLink,
+  getStatusColor,
+  getStatusLabel,
+  getQuoteItemUnitPrice,
+} from '../utils/helpers';
 import {
   ArrowDownTrayIcon,
   EnvelopeIcon,
@@ -55,11 +63,6 @@ const QuoteDetail = () => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
-      // Redirecionar para página de orçamentos após 1 segundo
-      setTimeout(() => {
-        navigate('/quotes');
-      }, 1000);
     } catch (error) {
       console.error('Erro ao baixar PDF:', error);
       alert('Erro ao baixar PDF');
@@ -72,8 +75,8 @@ const QuoteDetail = () => {
       return;
     }
 
-    const pdfUrl = `${window.location.origin}/quotes/pdf/public/${quote.publicToken}`;
-    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${pdfUrl}\n\nQualquer dúvida estou à disposição!`;
+    const publicUrl = `${window.location.origin}/view/${quote.publicToken}`;
+    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento de atacado "${quote.title}":\n\n${publicUrl}\n\nQualquer dúvida estou à disposição!`;
     
     const whatsappUrl = generateWhatsAppLink(quote.client.phone, message);
     window.open(whatsappUrl, '_blank');
@@ -145,118 +148,95 @@ const QuoteDetail = () => {
   // Items já vem como array do backend
   const items = Array.isArray(quote.items) ? quote.items : [];
 
+  const actionClass =
+    'inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800';
+
   return (
     <Layout title="Detalhes do Orçamento">
-          {/* Actions bar */}
-          <div className="mb-6 flex flex-wrap gap-3">
-            <Button
-              variant="primary"
-              icon={ArrowDownTrayIcon}
-              onClick={handleDownloadPDF}
-            >
+          <div className="mb-6 flex flex-wrap gap-2">
+            <button type="button" className={`${actionClass} bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-zinc-950 dark:border-white hover:bg-gray-800 dark:hover:bg-zinc-200`} onClick={handleDownloadPDF}>
+              <ArrowDownTrayIcon className="h-4 w-4" />
               Baixar PDF
-            </Button>
-            
-            <Button
-              variant="success"
-              icon={ChatBubbleLeftRightIcon}
-              onClick={handleSendWhatsApp}
-            >
-              Enviar via WhatsApp
-            </Button>
-            
-            <Button
-              variant="secondary"
-              icon={EnvelopeIcon}
-              onClick={() => setEmailModal(true)}
-            >
-              Enviar por Email
-            </Button>
-            
-            <Button
-              variant="secondary"
-              icon={EyeIcon}
-              onClick={viewPublicUrl}
-            >
-              Ver Página Pública
-            </Button>
-            
-            <Button
-              variant="outline"
-              icon={PencilIcon}
-              onClick={() => navigate(`/quotes/${id}/edit`)}
-            >
+            </button>
+            <button type="button" className={actionClass} onClick={handleSendWhatsApp}>
+              <ChatBubbleLeftRightIcon className="h-4 w-4" />
+              WhatsApp
+            </button>
+            <button type="button" className={actionClass} onClick={() => setEmailModal(true)}>
+              <EnvelopeIcon className="h-4 w-4" />
+              Email
+            </button>
+            <button type="button" className={actionClass} onClick={viewPublicUrl}>
+              <EyeIcon className="h-4 w-4" />
+              Página pública
+            </button>
+            <button type="button" className={actionClass} onClick={() => navigate(`/quotes/${id}/edit`)}>
+              <PencilIcon className="h-4 w-4" />
               Editar
-            </Button>
-            
-            <Button
-              variant="danger"
-              icon={TrashIcon}
-              onClick={handleDelete}
-            >
+            </button>
+            <button type="button" className={`${actionClass} text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40`} onClick={handleDelete}>
+              <TrashIcon className="h-4 w-4" />
               Excluir
-            </Button>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Quote info */}
-              <Card>
-                <div className="flex items-start justify-between mb-4">
+              <div className="surface p-6">
+                <div className="flex items-start justify-between gap-4 mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800">{quote.title}</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">{quote.title}</h2>
                     {quote.description && (
-                      <p className="text-gray-600 mt-2">{quote.description}</p>
+                      <p className="text-gray-500 dark:text-zinc-400 mt-2">{quote.description}</p>
                     )}
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(quote.status)}`}>
+                  <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(quote.status)}`}>
                     {getStatusLabel(quote.status)}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-gray-600">Número</p>
-                    <p className="font-semibold text-gray-800">{quote.id.substring(0, 8).toUpperCase()}</p>
+                    <p className="text-gray-500 dark:text-zinc-400">Número</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{quote.idExt || quote.id.substring(0, 8).toUpperCase()}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Data de Criação</p>
-                    <p className="font-semibold text-gray-800">{formatDate(quote.createdAt)}</p>
+                    <p className="text-gray-500 dark:text-zinc-400">Criado em</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{formatDate(quote.createdAt)}</p>
                   </div>
                   {quote.validUntil && (
                     <div>
-                      <p className="text-gray-600">Válido até</p>
-                      <p className="font-semibold text-gray-800">{formatDate(quote.validUntil)}</p>
+                      <p className="text-gray-500 dark:text-zinc-400">Válido até</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{formatDate(quote.validUntil)}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-gray-600">Visualizações</p>
-                    <p className="font-semibold text-gray-800">{quote.viewCount}</p>
+                    <p className="text-gray-500 dark:text-zinc-400">Visualizações</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{quote.viewCount}</p>
                   </div>
                 </div>
-              </Card>
+              </div>
 
-              {/* Items */}
-              <Card title="Itens">
+              <div className="surface p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Peças</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Descrição</th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Qtd</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Valor Unit.</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Total</th>
+                      <tr className="border-b border-gray-200 dark:border-zinc-800">
+                        <th className="text-left py-3 pr-4 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">Peça</th>
+                        <th className="text-center py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">Qtd</th>
+                        <th className="text-right py-3 px-4 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">Unitário</th>
+                        <th className="text-right py-3 pl-4 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-zinc-400">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((item, index) => (
-                        <tr key={index} className="border-b border-gray-100">
-                          <td className="py-3 px-4 text-sm text-gray-800">{item.description}</td>
-                          <td className="py-3 px-4 text-sm text-gray-800 text-center">{item.quantity}</td>
-                          <td className="py-3 px-4 text-sm text-gray-800 text-right">{formatCurrency(item.price)}</td>
-                          <td className="py-3 px-4 text-sm font-semibold text-gray-800 text-right">
-                            {formatCurrency(parseFloat(item.price) * parseInt(item.quantity))}
+                        <tr key={index} className="border-b border-gray-100 dark:border-zinc-800">
+                          <td className="py-3 pr-4 text-sm text-gray-900 dark:text-zinc-100">{item.description}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900 dark:text-zinc-100 text-center">{item.quantity}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900 dark:text-zinc-100 text-right">{formatCurrency(getQuoteItemUnitPrice(item))}</td>
+                          <td className="py-3 pl-4 text-sm font-medium text-gray-900 dark:text-white text-right">
+                            {formatCurrency(getQuoteItemUnitPrice(item) * parseFloat(item.quantity || 0))}
                           </td>
                         </tr>
                       ))}
@@ -264,116 +244,151 @@ const QuoteDetail = () => {
                   </table>
                 </div>
 
-                <div className="mt-6 space-y-2 border-t border-gray-200 pt-4">
+                <div className="mt-6 space-y-2 border-t border-gray-200 dark:border-zinc-800 pt-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-semibold text-gray-800">{formatCurrency(quote.subtotal)}</span>
+                    <span className="text-gray-500 dark:text-zinc-400">Subtotal</span>
+                    <span className="text-gray-900 dark:text-zinc-100">{formatCurrency(quote.subtotal)}</span>
                   </div>
                   {parseFloat(quote.discount) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Desconto</span>
-                      <span className="font-semibold text-red-600">-{formatCurrency(quote.discount)}</span>
+                      <span className="text-gray-500 dark:text-zinc-400">Desconto</span>
+                      <span className="text-gray-900 dark:text-zinc-100">-{formatCurrency(quote.discount)}</span>
                     </div>
                   )}
                   {parseFloat(quote.tax) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Taxas/Impostos</span>
-                      <span className="font-semibold text-gray-800">{formatCurrency(quote.tax)}</span>
+                      <span className="text-gray-500 dark:text-zinc-400">Impostos</span>
+                      <span className="text-gray-900 dark:text-zinc-100">{formatCurrency(quote.tax)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-lg border-t border-gray-200 pt-2">
-                    <span className="font-bold text-gray-800">TOTAL</span>
-                    <span className="font-bold text-primary-600">{formatCurrency(quote.total)}</span>
+                  <div className="flex justify-between text-lg border-t border-gray-200 dark:border-zinc-800 pt-3">
+                    <span className="font-semibold text-gray-900 dark:text-white">Total</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(quote.total)}</span>
                   </div>
                 </div>
-              </Card>
+              </div>
 
-              {/* Notes */}
               {quote.notes && (
-                <Card title="Observações">
-                  <p className="text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
-                </Card>
+                <div className="surface p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Observações</h3>
+                  <p className="text-gray-700 dark:text-zinc-300 whitespace-pre-wrap">{quote.notes}</p>
+                </div>
               )}
 
-              {/* Terms */}
               {quote.termsConditions && (
-                <Card title="Termos e Condições">
-                  <p className="text-gray-700 text-sm whitespace-pre-wrap">{quote.termsConditions}</p>
-                </Card>
+                <div className="surface p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Termos</h3>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300 whitespace-pre-wrap">{quote.termsConditions}</p>
+                </div>
               )}
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Status actions - PRIMEIRO */}
-              <Card title="Alterar Status">
-                <div className="space-y-2">
-                  <Button
-                    variant={quote.status === 'pending' ? 'primary' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('pending')}
-                    disabled={statusLoading}
-                  >
-                    {statusLoading && quote.status === 'pending' ? 'Atualizando...' : 'Pendente'}
-                  </Button>
-                  <Button
-                    variant={quote.status === 'approved' ? 'success' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('approved')}
-                    disabled={statusLoading}
-                  >
-                    {statusLoading && quote.status === 'approved' ? 'Atualizando...' : 'Aprovado'}
-                  </Button>
-                  <Button
-                    variant={quote.status === 'rejected' ? 'danger' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('rejected')}
-                    disabled={statusLoading}
-                  >
-                    {statusLoading && quote.status === 'rejected' ? 'Atualizando...' : 'Rejeitado'}
-                  </Button>
-                  <Button
-                    variant={quote.status === 'no_return' ? 'outline' : 'secondary'}
-                    className="w-full"
-                    onClick={() => handleStatusChange('no_return')}
-                    disabled={statusLoading}
-                  >
-                    {statusLoading && quote.status === 'no_return' ? 'Atualizando...' : 'Sem Retorno'}
-                  </Button>
-                </div>
-              </Card>
+              <div className="surface p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Decisão do pedido</h3>
+                <div className="space-y-3">
+                  {(quote.status === 'pending' || quote.status === 'no_return') && (
+                    <>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">
+                        Aprovar reserva o pedido de atacado com pagamento pendente. O estoque não é baixado agora.
+                      </p>
+                      <button
+                        type="button"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-zinc-950 hover:bg-gray-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+                        onClick={() => handleStatusChange('pending_payment')}
+                        disabled={statusLoading}
+                      >
+                        {statusLoading ? 'Atualizando...' : 'Aprovar orçamento'}
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                        onClick={() => handleStatusChange('rejected')}
+                        disabled={statusLoading}
+                      >
+                        Reprovar orçamento
+                      </button>
+                    </>
+                  )}
 
-              {/* Client info */}
-              <Card title="Cliente">
+                  {(quote.status === 'pending_payment' || quote.status === 'approved') && (
+                    <>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">
+                        Pedido aprovado. Quando o pagamento estiver integrado, o link sai daqui. Por enquanto dá para registrar o pagamento manualmente, sem mexer no estoque.
+                      </p>
+                      <button
+                        type="button"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-900 text-white dark:bg-white dark:text-zinc-950 hover:bg-gray-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+                        onClick={() => handleStatusChange('paid')}
+                        disabled={statusLoading}
+                      >
+                        {statusLoading ? 'Atualizando...' : 'Registrar pagamento'}
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                        onClick={() => handleStatusChange('rejected')}
+                        disabled={statusLoading}
+                      >
+                        Reprovar
+                      </button>
+                    </>
+                  )}
+
+                  {quote.status === 'paid' && (
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">
+                      Pagamento registrado. A baixa de estoque entra quando o fluxo de pagamento estiver ligado ao pedido.
+                    </p>
+                  )}
+
+                  {quote.status === 'rejected' && (
+                    <button
+                      type="button"
+                      className="w-full px-4 py-2.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                      onClick={() => handleStatusChange('pending')}
+                      disabled={statusLoading}
+                    >
+                      Reabrir orçamento
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="surface p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Cliente</h3>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-600">Nome</p>
-                    <p className="font-semibold text-gray-800">{quote.client.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-zinc-400">Nome</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{quote.client.name}</p>
                   </div>
+                  {quote.client.document && (
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">Documento</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{formatDocument(quote.client.document)}</p>
+                    </div>
+                  )}
                   {quote.client.email && (
                     <div>
-                      <p className="text-sm text-gray-600">Email</p>
-                      <p className="font-semibold text-gray-800">{quote.client.email}</p>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">Email</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{quote.client.email}</p>
                     </div>
                   )}
                   {quote.client.phone && (
                     <div>
-                      <p className="text-sm text-gray-600">Telefone</p>
-                      <p className="font-semibold text-gray-800">{quote.client.phone}</p>
+                      <p className="text-sm text-gray-500 dark:text-zinc-400">Telefone</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{formatPhone(quote.client.phone)}</p>
                     </div>
                   )}
                 </div>
-              </Card>
+              </div>
 
-              {/* Share info */}
-              <Card title="Compartilhar">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-600 mb-2">Link público:</p>
-                  <p className="text-xs font-mono bg-white p-2 rounded border border-gray-200 break-all">
-                    {window.location.origin}/view/{quote.publicToken}
-                  </p>
-                </div>
-              </Card>
+              <div className="surface p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Compartilhar</h3>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-2">Link público</p>
+                <p className="text-xs font-mono text-gray-800 dark:text-zinc-200 bg-gray-50 dark:bg-zinc-950 p-3 rounded-lg border border-gray-200 dark:border-zinc-800 break-all">
+                  {window.location.origin}/view/{quote.publicToken}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -385,12 +400,12 @@ const QuoteDetail = () => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">
               Email do destinatário
             </label>
             <input
               type="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-white outline-none"
               value={emailData.email}
               onChange={(e) => setEmailData({ ...emailData, email: e.target.value })}
               placeholder="cliente@email.com"
@@ -398,11 +413,11 @@ const QuoteDetail = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2">
               Mensagem personalizada (opcional)
             </label>
             <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-white outline-none"
               rows="4"
               value={emailData.message}
               onChange={(e) => setEmailData({ ...emailData, message: e.target.value })}

@@ -10,7 +10,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
