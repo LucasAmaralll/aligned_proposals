@@ -3,6 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSidebar } from '../context/SidebarContext';
+import { useCompany } from '../context/CompanyContext';
+import { getCompanyName } from '../utils/helpers';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -20,6 +22,8 @@ import {
 
 const Sidebar = () => {
   const { signOut, user } = useAuth();
+  const { company } = useCompany();
+  const companyName = getCompanyName(company) || getCompanyName(user);
   const { darkMode, toggleDarkMode } = useTheme();
   const { isCollapsed, toggleCollapse, isOpen, setIsOpen } = useSidebar();
   const navigate = useNavigate();
@@ -71,14 +75,16 @@ const Sidebar = () => {
               {!isCollapsed ? (
                 <div className="flex flex-col">
                   <span className="text-2xl font-semibold tracking-tight text-gray-800 dark:text-white" style={{ fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
-                    Aligned
+                    {companyName || 'Aligned'}
                   </span>
                   <span className="text-sm italic text-gray-600 dark:text-gray-400 -mt-1 self-end" style={{ fontFamily: "'Georgia', serif" }}>
-                    Proposals
+                    Gestão
                   </span>
                 </div>
               ) : (
-                <span className="text-xl font-semibold text-gray-800 dark:text-white">A</span>
+                <span className="text-xl font-semibold text-gray-800 dark:text-white">
+                  {(companyName || 'A').charAt(0).toUpperCase()}
+                </span>
               )}
             </Link>
             <button

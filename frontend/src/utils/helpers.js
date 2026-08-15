@@ -90,6 +90,18 @@ export const generateWhatsAppLink = (phone, message) => {
 export const truncateText = (text, maxLength) => {
   if (!text) return '';
   if (text.length <= maxLength) return text;
-  
+
   return text.substring(0, maxLength) + '...';
+};
+
+export const getCompanyName = (userOrCompany) => {
+  if (!userOrCompany) return '';
+  if (userOrCompany.name && userOrCompany.slug) return userOrCompany.name;
+  return (
+    userOrCompany.company?.name ||
+    userOrCompany.companyName ||
+    (typeof userOrCompany.company === 'string' ? userOrCompany.company : '') ||
+    userOrCompany.name ||
+    ''
+  );
 };

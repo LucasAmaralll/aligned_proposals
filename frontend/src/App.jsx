@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { CompanyProvider } from './context/CompanyContext';
 import PrivateRoute from './components/PrivateRoute';
 
 // Public pages
@@ -25,6 +26,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <CompanyProvider>
         <SidebarProvider>
           <Router>
             <Routes>
@@ -136,7 +138,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
-      </SidebarProvider>
+        </SidebarProvider>
+        </CompanyProvider>
       </AuthProvider>
     </ThemeProvider>
   );
