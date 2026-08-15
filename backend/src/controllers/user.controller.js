@@ -1,15 +1,14 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const bcrypt = require('bcryptjs');
-
-const prisma = new PrismaClient();
+const { USER_TENANT_INCLUDE, sanitizeUser } = require('../services/tenant.service');
 
 class UserController {
   async getProfile(req, res) {
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.userId },
-        include: { 
-          plan: true,
+        include: {
+          ...USER_TENANT_INCLUDE,
           _count: {
             select: {
               clients: true,
@@ -23,9 +22,7 @@ class UserController {
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
 
-      delete user.password;
-
-      return res.json(user);
+      return res.json(sanitizeUser(user));
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
       return res.status(500).json({ error: 'Erro ao buscar perfil' });
@@ -36,20 +33,25 @@ class UserController {
     try {
       const { name, company, phone, website } = req.body;
 
+      if (company && req.companyId) {
+        await prisma.company.update({
+          where: { id: req.companyId },
+          data: { name: company },
+        });
+      }
+
       const user = await prisma.user.update({
         where: { id: req.userId },
         data: {
           ...(name && { name }),
-          ...(company && { company }),
+          ...(company && { companyName: company }),
           ...(phone && { phone }),
           ...(website && { website })
         },
-        include: { plan: true }
+        include: USER_TENANT_INCLUDE
       });
 
-      delete user.password;
-
-      return res.json(user);
+      return res.json(sanitizeUser(user));
     } catch (error) {
       console.error('Erro ao atualizar perfil:', error);
       return res.status(500).json({ error: 'Erro ao atualizar perfil' });
@@ -99,12 +101,10 @@ class UserController {
       const user = await prisma.user.update({
         where: { id: req.userId },
         data: { logo: logoUrl },
-        include: { plan: true }
+        include: USER_TENANT_INCLUDE
       });
 
-      delete user.password;
-
-      return res.json(user);
+      return res.json(sanitizeUser(user));
     } catch (error) {
       console.error('Erro ao fazer upload do logo:', error);
       return res.status(500).json({ error: 'Erro ao fazer upload do logo' });
@@ -135,12 +135,10 @@ class UserController {
       const updatedUser = await prisma.user.update({
         where: { id: req.userId },
         data: { logo: null },
-        include: { plan: true }
+        include: USER_TENANT_INCLUDE
       });
 
-      delete updatedUser.password;
-
-      return res.json(updatedUser);
+      return res.json(sanitizeUser(updatedUser));
     } catch (error) {
       console.error('Erro ao deletar logo:', error);
       return res.status(500).json({ error: 'Erro ao deletar logo' });
@@ -160,28 +158,26 @@ class UserController {
             select: {
               quotesLimit: true
             }
-          },
-          _count: {
-            select: {
-              clients: true,
-              quotes: clientId ? false : true  // Se filtrar por cliente, não conta total
-            }
           }
         }
       });
 
-      // Se filtrou por cliente, contar só os orçamentos desse cliente
-      let quoteFilter = { userId: req.userId };
+      let quoteFilter = { companyId: req.companyId, deletionStatus: 1 };
       if (clientId) {
         quoteFilter.clientId = clientId;
       }
 
-      // Buscar orçamentos por status
-      const quotesByStatus = await prisma.quote.groupBy({
-        by: ['status'],
-        where: quoteFilter,
-        _count: true
-      });
+      const [clientsCount, quotesCount, quotesByStatus] = await Promise.all([
+        prisma.client.count({
+          where: { companyId: req.companyId, status: 1 },
+        }),
+        prisma.quote.count({ where: quoteFilter }),
+        prisma.quote.groupBy({
+          by: ['status'],
+          where: quoteFilter,
+          _count: true
+        }),
+      ]);
 
       const statusCounts = {
         pending: 0,
@@ -194,14 +190,12 @@ class UserController {
         statusCounts[item.status] = item._count;
       });
 
-      // Se filtrou por cliente, contar orçamentos desse cliente
-      if (clientId) {
-        const totalQuotes = await prisma.quote.count({ where: quoteFilter });
-        stats._count.quotes = totalQuotes;
-      }
-
       return res.json({
         ...stats,
+        _count: {
+          clients: clientsCount,
+          quotes: quotesCount,
+        },
         quotesByStatus: statusCounts
       });
     } catch (error) {
@@ -212,17 +206,15 @@ class UserController {
 
   async deleteAccount(req, res) {
     try {
-      // Deletar todos os dados relacionados ao usuário
-      await prisma.$transaction([
-        prisma.quote.deleteMany({ where: { userId: req.userId } }),
-        prisma.client.deleteMany({ where: { userId: req.userId } }),
-        prisma.user.delete({ where: { id: req.userId } })
-      ]);
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { active: false }
+      });
 
-      return res.json({ message: 'Conta excluída com sucesso' });
+      return res.json({ message: 'Conta inativada com sucesso' });
     } catch (error) {
-      console.error('Erro ao excluir conta:', error);
-      return res.status(500).json({ error: 'Erro ao excluir conta' });
+      console.error('Erro ao inativar conta:', error);
+      return res.status(500).json({ error: 'Erro ao inativar conta' });
     }
   }
 
@@ -253,12 +245,10 @@ class UserController {
           quotesThisMonth: 0, // Resetar contador ao fazer upgrade
           quotesResetAt: new Date()
         },
-        include: { plan: true }
+        include: USER_TENANT_INCLUDE
       });
 
-      delete user.password;
-
-      return res.json(user);
+      return res.json(sanitizeUser(user));
     } catch (error) {
       console.error('Erro ao fazer upgrade:', error);
       return res.status(500).json({ error: 'Erro ao fazer upgrade do plano' });

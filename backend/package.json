@@ -1,16 +1,17 @@
 {
-  "name": "aligned-proposals-backend",
+  "name": "aligned-backend",
   "version": "1.0.0",
-  "description": "Backend da plataforma Aligned Proposals - Sistema de orçamentos",
+  "description": "Backend do Aligned",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "jest",
+    "test": "NODE_ENV=test jest --runInBand",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "postinstall": "npx puppeteer browsers install chrome"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -40,6 +41,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
-    "prisma": "^5.8.0"
+    "prisma": "^5.8.0",
+    "supertest": "^7.2.2"
   }
 }

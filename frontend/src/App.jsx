@@ -3,36 +3,85 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { CompanyProvider } from './context/CompanyContext';
 import PrivateRoute from './components/PrivateRoute';
+import GuestRoute from './components/GuestRoute';
 
 // Public pages
-import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import PublicQuoteView from './pages/PublicQuoteView';
 
 // Private pages
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import ClientForm from './pages/ClientForm';
+import ClientDetail from './pages/ClientDetail';
 import Quotes from './pages/Quotes';
 import QuoteDetail from './pages/QuoteDetail';
 import QuoteForm from './pages/QuoteForm';
-import Plans from './pages/Plans';
 import Profile from './pages/Profile';
 import ProductPricing from './pages/ProductPricing';
+import Products from './pages/Products';
+import ProductForm from './pages/ProductForm';
+import ProductDetail from './pages/ProductDetail';
+import Stock from './pages/Stock';
+import StockMovements from './pages/StockMovements';
+import Sales from './pages/Sales';
+import Pos from './pages/Pos';
+import SaleDetail from './pages/SaleDetail';
+import SaleReturn from './pages/SaleReturn';
+import SaleExchange from './pages/SaleExchange';
+import Expenses from './pages/Expenses';
+import Cash from './pages/Cash';
+import Team from './pages/Team';
+import Shipments from './pages/Shipments';
+import ShipmentForm from './pages/ShipmentForm';
+import RequirePermission from './components/RequirePermission';
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <CompanyProvider>
         <SidebarProvider>
           <Router>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route
+                path="/"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <GuestRoute>
+                    <ForgotPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <GuestRoute>
+                    <ResetPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route path="/register" element={<Navigate to="/" replace />} />
               <Route path="/view/:token" element={<PublicQuoteView />} />
 
             {/* Private routes - Dashboard */}
@@ -67,6 +116,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <ClientForm />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/clients/:id"
+              element={
+                <PrivateRoute>
+                  <ClientDetail />
                 </PrivateRoute>
               }
             />
@@ -105,22 +162,168 @@ function App() {
               }
             />
             
-            {/* Private routes - Plans */}
+            {/* Private routes - Sales */}
             <Route
-              path="/plans"
+              path="/sales"
               element={
                 <PrivateRoute>
-                  <Plans />
+                  <Sales />
                 </PrivateRoute>
               }
             />
-            
+            <Route
+              path="/sales/new"
+              element={
+                <PrivateRoute>
+                  <Pos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id/return"
+              element={
+                <PrivateRoute>
+                  <SaleReturn />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id/exchange"
+              element={
+                <PrivateRoute>
+                  <SaleExchange />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id"
+              element={
+                <PrivateRoute>
+                  <SaleDetail />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/cash"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="cash.read">
+                    <Cash />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/shipments"
+              element={
+                <PrivateRoute>
+                  <Shipments />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/shipments/new"
+              element={
+                <PrivateRoute>
+                  <ShipmentForm />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/shipments/:id/edit"
+              element={
+                <PrivateRoute>
+                  <ShipmentForm />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Private routes - Catalog */}
+            <Route
+              path="/products"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="products.manage">
+                    <Products />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/products/new"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="products.manage">
+                    <ProductForm />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/products/:id"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="products.manage">
+                    <ProductDetail />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
+            {/* Private routes - Stock */}
+            <Route
+              path="/stock"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="stock.manage">
+                    <Stock />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/stock/movements"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="stock.manage">
+                    <StockMovements />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
+            {/* Private routes - Expenses */}
+            <Route
+              path="/expenses"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="expenses.manage">
+                    <Expenses />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/team"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="users.manage">
+                    <Team />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
             {/* Private routes - Pricing */}
             <Route
               path="/pricing"
               element={
                 <PrivateRoute>
-                  <ProductPricing />
+                  <RequirePermission permission="products.manage">
+                    <ProductPricing />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -128,7 +331,9 @@ function App() {
               path="/pricing/:id"
               element={
                 <PrivateRoute>
-                  <ProductPricing />
+                  <RequirePermission permission="products.manage">
+                    <ProductPricing />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -147,7 +352,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
-      </SidebarProvider>
+        </SidebarProvider>
+        </CompanyProvider>
       </AuthProvider>
     </ThemeProvider>
   );

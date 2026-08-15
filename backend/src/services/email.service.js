@@ -15,16 +15,20 @@ class EmailService {
 
   async sendQuoteEmail(to, quote, publicUrl, customMessage) {
     try {
-      const items = JSON.parse(quote.items);
+      const items = typeof quote.items === 'string' ? JSON.parse(quote.items) : (quote.items || []);
       
-      const itemsHtml = items.map(item => `
+      const itemsHtml = items.map(item => {
+        const unitPrice = parseFloat(item.unitPrice ?? item.price ?? 0) || 0;
+        const quantity = parseFloat(item.quantity) || 0;
+        return `
         <tr>
           <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">R$ ${parseFloat(item.price).toFixed(2)}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">R$ ${(parseFloat(item.price) * parseInt(item.quantity)).toFixed(2)}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: center;">${quantity}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">R$ ${unitPrice.toFixed(2)}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">R$ ${(unitPrice * quantity).toFixed(2)}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
       const html = `
         <!DOCTYPE html>
@@ -54,7 +58,7 @@ class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <h1>${quote.user.company || quote.user.name}</h1>
+              <h1>${quote.user.company?.name || quote.user.companyName || quote.user.name}</h1>
               <p>Orçamento Nº ${quote.id.substring(0, 8).toUpperCase()}</p>
             </div>
             
@@ -99,9 +103,9 @@ class EmailService {
             </div>
             
             <div class="footer">
-              <p>Este email foi enviado por ${quote.user.company || quote.user.name}</p>
+              <p>Este email foi enviado por ${quote.user.company?.name || quote.user.companyName || quote.user.name}</p>
               <p>${quote.user.email} ${quote.user.phone ? '| ' + quote.user.phone : ''}</p>
-              <p style="margin-top: 10px;">Gerado por Aligned Proposals</p>
+              <p style="margin-top: 10px;">Gerado por Aligned</p>
             </div>
           </div>
         </body>
@@ -122,6 +126,26 @@ class EmailService {
       console.error('Erro ao enviar email:', error);
       throw error;
     }
+  }
+
+  async sendPasswordReset(to, resetUrl) {
+    if (!process.env.SMTP_HOST) {
+      console.log(`[dev] Reset de senha para ${to}: ${resetUrl}`);
+      return true;
+    }
+
+    await this.transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject: 'Redefinir senha — Aligned',
+      html: `
+        <p>Recebemos um pedido para redefinir a senha da sua conta Aligned.</p>
+        <p><a href="${resetUrl}">Clique aqui para escolher uma senha nova</a></p>
+        <p>O link vale por 1 hora. Se você não pediu isso, ignore este e-mail.</p>
+      `,
+    });
+
+    return true;
   }
 }
 

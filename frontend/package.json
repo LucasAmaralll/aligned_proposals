@@ -1,7 +1,7 @@
 {
-  "name": "aligned-proposals-frontend",
+  "name": "aligned-frontend",
   "version": "1.0.0",
-  "description": "Frontend da plataforma Aligned Proposals",
+  "description": "Frontend do Aligned",
   "private": true,
   "dependencies": {
     "@heroicons/react": "^2.1.1",

@@ -1,9 +1,124 @@
-/**
- * Calcula o preço de um produto baseado em seus custos e margem de lucro
- * @param {Object} productData - Dados do produto para cálculo
- * @returns {Object} Objeto com custos detalhados e preços calculados
- */
-function calculateProductPrice(productData) {
+function num(value) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function money(value) {
+  return Math.round((num(value) + Number.EPSILON) * 100) / 100;
+}
+
+function percentOf(value, total) {
+  if (!total) return 0;
+  return money((value / total) * 100);
+}
+
+function fabricCost(item) {
+  const meters = num(item.meters);
+  const price = num(item.pricePerMeter);
+  const waste = num(item.wastePercent);
+  if (meters || price) {
+    return meters * (1 + waste / 100) * price;
+  }
+  return num(item.cost);
+}
+
+function trimCost(item) {
+  if (item.unitCost !== undefined || item.kind === 'trim') {
+    return num(item.quantity) * num(item.unitCost);
+  }
+  return num(item.cost);
+}
+
+function isGarmentPayload(data) {
+  const materials = data.rawMaterials || [];
+  return materials.some((item) => item.kind === 'fabric' || item.kind === 'trim' || item.meters != null);
+}
+
+function calculateGarmentPrice(productData) {
+  const materials = productData.rawMaterials || [];
+  const expenses = productData.expenses || [];
+
+  const fabrics = materials.filter((item) => item.kind === 'fabric' || item.meters != null);
+  const trims = materials.filter((item) => item.kind === 'trim');
+  const leftover = materials.filter((item) => !item.kind && item.meters == null);
+
+  const fabricTotal = fabrics.reduce((sum, item) => sum + fabricCost(item), 0);
+  const trimTotal = trims.reduce((sum, item) => sum + trimCost(item), 0);
+  const leftoverTotal = leftover.reduce((sum, item) => sum + num(item.cost), 0);
+
+  const sewingHours = num(productData.productionTimeHours);
+  const labor = sewingHours * num(productData.laborCostPerHour);
+
+  const finishing = expenses
+    .filter((item) => item.type === 'variable' || item.kind === 'finishing')
+    .reduce((sum, item) => sum + num(item.cost), 0);
+
+  const overheadPercent = num(
+    (expenses.find((item) => item.type === 'overhead' || item.kind === 'overhead') || {}).percent
+  );
+  const retailMargin = num(
+    (expenses.find((item) => item.type === 'retail' || item.kind === 'retail') || {}).percent
+  );
+
+  const materialsCost = fabricTotal + trimTotal + leftoverTotal;
+  const direct = materialsCost + labor + finishing;
+  const overhead = direct * (overheadPercent / 100);
+  const total = direct + overhead;
+  const factoryMargin = num(productData.profitMargin);
+  const factoryPrice = total * (1 + factoryMargin / 100);
+  const retailPrice = factoryPrice * (1 + retailMargin / 100);
+  const profitValue = factoryPrice - total;
+  const base = factoryPrice || 1;
+
+  return {
+    costs: {
+      fabric: money(fabricTotal),
+      trims: money(trimTotal),
+      rawMaterials: money(materialsCost),
+      labor: money(labor),
+      finishing: money(finishing),
+      overhead: money(overhead),
+      energy: money(overhead),
+      fixedExpenses: money(overhead),
+      variableExpenses: money(finishing),
+      total: money(total),
+    },
+    prices: {
+      minimumSalePrice: money(total),
+      factoryPrice: money(factoryPrice),
+      idealSalePrice: money(factoryPrice),
+      retailPrice: money(retailPrice),
+      profitValue: money(profitValue),
+    },
+    breakdown: {
+      values: {
+        fabric: fabricTotal,
+        trims: trimTotal,
+        labor,
+        finishing,
+        overhead,
+        profit: profitValue,
+      },
+      percentages: {
+        fabricPercent: percentOf(fabricTotal, base),
+        trimsPercent: percentOf(trimTotal, base),
+        rawMaterialsPercent: percentOf(materialsCost, base),
+        laborPercent: percentOf(labor, base),
+        finishingPercent: percentOf(finishing, base),
+        overheadPercent: percentOf(overhead, base),
+        energyPercent: percentOf(overhead, base),
+        fixedExpensesPercent: percentOf(overhead, base),
+        variableExpensesPercent: percentOf(finishing, base),
+        profitPercent: percentOf(profitValue, base),
+      },
+    },
+    profitMargin: factoryMargin,
+    retailMargin,
+    overheadPercent,
+  };
+}
+
+function calculateLegacyPrice(productData) {
   const {
     rawMaterials = [],
     productionTimeHours = 0,
@@ -14,101 +129,63 @@ function calculateProductPrice(productData) {
     profitMargin = 0,
   } = productData;
 
-  // 1. Calcular custo de matérias-primas
-  const rawMaterialsCost = rawMaterials.reduce(
-    (total, material) => total + parseFloat(material.cost || 0),
-    0
-  );
-
-  // 2. Calcular custo de energia elétrica
-  const energyCost = parseFloat(energyConsumptionKwh) * parseFloat(energyCostPerKwh);
-
-  // 3. Calcular custo de mão de obra
-  const laborCost = parseFloat(productionTimeHours) * parseFloat(laborCostPerHour);
-
-  // 4. Calcular despesas fixas e variáveis
+  const rawMaterialsCost = rawMaterials.reduce((total, material) => total + num(material.cost), 0);
+  const energyCost = num(energyConsumptionKwh) * num(energyCostPerKwh);
+  const laborCost = num(productionTimeHours) * num(laborCostPerHour);
   const fixedExpenses = expenses
     .filter((expense) => expense.type === 'fixed')
-    .reduce((total, expense) => total + parseFloat(expense.cost || 0), 0);
-
+    .reduce((total, expense) => total + num(expense.cost), 0);
   const variableExpenses = expenses
     .filter((expense) => expense.type === 'variable')
-    .reduce((total, expense) => total + parseFloat(expense.cost || 0), 0);
-
-  const totalExpenses = fixedExpenses + variableExpenses;
-
-  // 5. Calcular custo total de produção
-  const totalProductionCost = 
-    rawMaterialsCost + 
-    energyCost + 
-    laborCost + 
-    totalExpenses;
-
-  // 6. Calcular preço mínimo de venda (sem lucro)
-  const minimumSalePrice = totalProductionCost;
-
-  // 7. Calcular preço ideal de venda (com margem de lucro)
-  // Usando markup sobre o custo: Preço = Custo × (1 + markup%)
-  const profitMarginDecimal = parseFloat(profitMargin) / 100;
+    .reduce((total, expense) => total + num(expense.cost), 0);
+  const totalProductionCost = rawMaterialsCost + energyCost + laborCost + fixedExpenses + variableExpenses;
+  const profitMarginDecimal = num(profitMargin) / 100;
   const idealSalePrice = totalProductionCost * (1 + profitMarginDecimal);
-
-  // 8. Calcular o valor do lucro
   const profitValue = idealSalePrice - totalProductionCost;
 
-  // 9. Composição dos custos (para gráfico)
-  const costBreakdown = {
-    rawMaterials: rawMaterialsCost,
-    energy: energyCost,
-    labor: laborCost,
-    fixedExpenses: fixedExpenses,
-    variableExpenses: variableExpenses,
-    profit: profitValue,
-  };
-
-  // 10. Percentual de cada custo em relação ao preço ideal
-  const costPercentages = {
-    rawMaterialsPercent: (rawMaterialsCost / idealSalePrice) * 100,
-    energyPercent: (energyCost / idealSalePrice) * 100,
-    laborPercent: (laborCost / idealSalePrice) * 100,
-    fixedExpensesPercent: (fixedExpenses / idealSalePrice) * 100,
-    variableExpensesPercent: (variableExpenses / idealSalePrice) * 100,
-    profitPercent: (profitValue / idealSalePrice) * 100,
-  };
-
   return {
-    // Custos detalhados
     costs: {
-      rawMaterials: parseFloat(rawMaterialsCost.toFixed(2)),
-      energy: parseFloat(energyCost.toFixed(2)),
-      labor: parseFloat(laborCost.toFixed(2)),
-      fixedExpenses: parseFloat(fixedExpenses.toFixed(2)),
-      variableExpenses: parseFloat(variableExpenses.toFixed(2)),
-      total: parseFloat(totalProductionCost.toFixed(2)),
+      rawMaterials: money(rawMaterialsCost),
+      energy: money(energyCost),
+      labor: money(laborCost),
+      fixedExpenses: money(fixedExpenses),
+      variableExpenses: money(variableExpenses),
+      total: money(totalProductionCost),
     },
-    
-    // Preços calculados
     prices: {
-      minimumSalePrice: parseFloat(minimumSalePrice.toFixed(2)),
-      idealSalePrice: parseFloat(idealSalePrice.toFixed(2)),
-      profitValue: parseFloat(profitValue.toFixed(2)),
+      minimumSalePrice: money(totalProductionCost),
+      idealSalePrice: money(idealSalePrice),
+      factoryPrice: money(idealSalePrice),
+      retailPrice: money(idealSalePrice),
+      profitValue: money(profitValue),
     },
-    
-    // Composição para gráficos
     breakdown: {
-      values: costBreakdown,
+      values: {
+        rawMaterials: rawMaterialsCost,
+        energy: energyCost,
+        labor: laborCost,
+        fixedExpenses,
+        variableExpenses,
+        profit: profitValue,
+      },
       percentages: {
-        rawMaterialsPercent: parseFloat(costPercentages.rawMaterialsPercent.toFixed(2)),
-        energyPercent: parseFloat(costPercentages.energyPercent.toFixed(2)),
-        laborPercent: parseFloat(costPercentages.laborPercent.toFixed(2)),
-        fixedExpensesPercent: parseFloat(costPercentages.fixedExpensesPercent.toFixed(2)),
-        variableExpensesPercent: parseFloat(costPercentages.variableExpensesPercent.toFixed(2)),
-        profitPercent: parseFloat(costPercentages.profitPercent.toFixed(2)),
+        rawMaterialsPercent: percentOf(rawMaterialsCost, idealSalePrice),
+        energyPercent: percentOf(energyCost, idealSalePrice),
+        laborPercent: percentOf(laborCost, idealSalePrice),
+        fixedExpensesPercent: percentOf(fixedExpenses, idealSalePrice),
+        variableExpensesPercent: percentOf(variableExpenses, idealSalePrice),
+        profitPercent: percentOf(profitValue, idealSalePrice),
       },
     },
-    
-    // Margem de lucro aplicada
-    profitMargin: parseFloat(profitMargin),
+    profitMargin: num(profitMargin),
   };
+}
+
+function calculateProductPrice(productData) {
+  if (isGarmentPayload(productData)) {
+    return calculateGarmentPrice(productData);
+  }
+  return calculateLegacyPrice(productData);
 }
 
 module.exports = { calculateProductPrice };

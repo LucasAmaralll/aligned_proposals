@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
+import Typeahead from '../components/Typeahead';
 import api from '../services/api';
-import { formatCurrency } from '../utils/helpers';
+import { formatClientNumber, formatCurrency, formatDocument } from '../utils/helpers';
 
 const QuoteForm = () => {
   const navigate = useNavigate();
@@ -15,8 +16,9 @@ const QuoteForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
-  const [clients, setClients] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [clientQuery, setClientQuery] = useState('');
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [productQueries, setProductQueries] = useState(['']);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -35,34 +37,20 @@ const QuoteForm = () => {
   });
 
   useEffect(() => {
-    loadClients();
-    loadProducts();
     if (isEdit) {
       loadQuote();
     }
   }, [id]);
 
-  const loadClients = async () => {
-    try {
-      const response = await api.get('/clients');
-      // Backend retorna { clients: [...], pagination: {...} }
-      const clientsData = response.data.clients || response.data;
-      setClients(Array.isArray(clientsData) ? clientsData : []);
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
-      setClients([]);
-    }
-  };
+  const searchClients = useCallback(async (term) => {
+    const response = await api.get('/clients', { params: { search: term, limit: 8 } });
+    return response.data.clients || [];
+  }, []);
 
-  const loadProducts = async () => {
-    try {
-      const response = await api.get('/products');
-      setProducts(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
-      setProducts([]);
-    }
-  };
+  const searchProducts = useCallback(async (term) => {
+    const response = await api.get('/catalog/products', { params: { search: term, limit: 8 } });
+    return response.data.products || [];
+  }, []);
 
   const loadQuote = async () => {
     try {
@@ -84,6 +72,8 @@ const QuoteForm = () => {
         items = [{ description: '', quantity: 1, unitPrice: 0 }];
       }
       
+      setSelectedClient(quote.client || null);
+      setProductQueries((quote.items || []).map(() => ''));
       setFormData({
         title: quote.title,
         description: quote.description || '',
@@ -155,20 +145,18 @@ const QuoteForm = () => {
     setFormData({ ...formData, tax: numericValue });
   };
 
-  const handleProductSelect = (index, productId) => {
-    if (!productId) return;
-    
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      const newItems = [...formData.items];
-      newItems[index] = {
-        ...newItems[index],
-        description: product.name,
-        unitPrice: product.idealSalePrice,
-        productId: product.id
-      };
-      setFormData({ ...formData, items: newItems });
-    }
+  const handleProductSelect = (index, product) => {
+    if (!product) return;
+    const price = parseFloat(product.variants?.[0]?.salePrice || product.idealSalePrice || 0);
+    const newItems = [...formData.items];
+    newItems[index] = {
+      ...newItems[index],
+      description: product.name,
+      unitPrice: price,
+      productId: product.id
+    };
+    setFormData({ ...formData, items: newItems });
+    setProductQueries((current) => current.map((query, i) => (i === index ? '' : query)));
   };
 
   const addItem = () => {
@@ -176,6 +164,7 @@ const QuoteForm = () => {
       ...formData,
       items: [...formData.items, { description: '', quantity: 1, unitPrice: 0 }]
     });
+    setProductQueries((current) => [...current, '']);
   };
 
   const removeItem = (index) => {
@@ -185,6 +174,7 @@ const QuoteForm = () => {
     }
     const newItems = formData.items.filter((_, i) => i !== index);
     setFormData({ ...formData, items: newItems });
+    setProductQueries((current) => current.filter((_, i) => i !== index));
   };
 
   const calculateSubtotal = () => {
@@ -352,20 +342,41 @@ const QuoteForm = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Cliente *
                     </label>
-                    <select
-                      name="clientId"
-                      value={formData.clientId}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    >
-                      <option value="">Selecione um cliente</option>
-                      {clients.map(client => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Typeahead
+                      value={clientQuery}
+                      onChange={setClientQuery}
+                      fetchOptions={searchClients}
+                      onSelect={(client) => {
+                        setSelectedClient(client);
+                        setFormData({ ...formData, clientId: client.id });
+                        setClientQuery('');
+                      }}
+                      selected={selectedClient}
+                      selectedLabel={
+                        <span>
+                          #{formatClientNumber(selectedClient?.number)} · {selectedClient?.name}
+                        </span>
+                      }
+                      onClear={() => {
+                        setSelectedClient(null);
+                        setFormData({ ...formData, clientId: '' });
+                      }}
+                      placeholder="Buscar por nome, número, CPF ou CNPJ"
+                      hint="Digite pelo menos 2 caracteres"
+                      emptyText="Nenhum cliente encontrado"
+                      renderOption={(client) => (
+                        <div>
+                          <p className="text-sm text-gray-900 dark:text-white">
+                            #{formatClientNumber(client.number)} · {client.name}
+                          </p>
+                          {client.document && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatDocument(client.document)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    />
                   </div>
                   
                   <Input
@@ -400,20 +411,28 @@ const QuoteForm = () => {
                       {/* Seletor de Produto */}
                       <div className="mb-3">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Selecionar Produto (opcional)
+                          Buscar produto (opcional)
                         </label>
-                        <select
-                          value={item.productId || ''}
-                          onChange={(e) => handleProductSelect(index, e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        >
-                          <option value="">Ou digite manualmente abaixo</option>
-                          {products.map(product => (
-                            <option key={product.id} value={product.id}>
-                              {product.name} - {formatCurrency(product.idealSalePrice)}
-                            </option>
-                          ))}
-                        </select>
+                        <Typeahead
+                          value={productQueries[index] || ''}
+                          onChange={(value) =>
+                            setProductQueries((current) => {
+                              const next = [...current];
+                              next[index] = value;
+                              return next;
+                            })
+                          }
+                          fetchOptions={searchProducts}
+                          onSelect={(product) => handleProductSelect(index, product)}
+                          placeholder="Digite o nome ou SKU"
+                          hint="Digite para buscar no catálogo, ou preencha abaixo"
+                          emptyText="Nenhum produto encontrado"
+                          renderOption={(product) => (
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              {product.name} · {formatCurrency(product.variants?.[0]?.salePrice || 0)}
+                            </p>
+                          )}
+                        />
                       </div>
 
                       <div className="flex gap-3 items-start">

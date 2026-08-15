@@ -72,7 +72,10 @@ const Quotes = () => {
       quote.title.toLowerCase().includes(search.toLowerCase()) ||
       quote.client?.name.toLowerCase().includes(search.toLowerCase());
     
-    const matchStatus = statusFilter === 'all' || quote.status === statusFilter;
+    const matchStatus =
+      statusFilter === 'all' ||
+      quote.status === statusFilter ||
+      (statusFilter === 'pending_payment' && quote.status === 'approved');
     
     return matchSearch && matchStatus;
   });
@@ -84,8 +87,8 @@ const Quotes = () => {
     }
 
     // Usar window.location.origin para garantir que o link é absoluto e correto
-    const pdfUrl = `${window.location.origin}/quotes/pdf/public/${quote.publicToken}`;
-    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento "${quote.title}" que você solicitou:\n\n${pdfUrl}\n\nQualquer dúvida estou à disposição!`;
+    const publicUrl = `${window.location.origin}/view/${quote.publicToken}`;
+    const message = `Olá ${quote.client.name}!\n\nSegue o orçamento de atacado "${quote.title}":\n\n${publicUrl}\n\nQualquer dúvida estou à disposição!`;
     
     const whatsappUrl = generateWhatsAppLink(quote.client.phone, message);
     window.open(whatsappUrl, '_blank');
@@ -158,7 +161,7 @@ const Quotes = () => {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Orçamentos</h1>
-                <p className="text-gray-600 dark:text-gray-400">Gerencie seus orçamentos</p>
+                <p className="text-gray-600 dark:text-gray-400">Pedidos de atacado: proposta, aprovação e pagamento pendente.</p>
               </div>
               
               <button
@@ -188,10 +191,12 @@ const Quotes = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
-                <option value="all">Todos os Status</option>
-                <option value="pending">Pendentes</option>
-                <option value="approved">Aprovados</option>
-                <option value="rejected">Rejeitados</option>
+                <option value="all">Todos os status</option>
+                <option value="pending">Aguardando resposta</option>
+                <option value="pending_payment">Pagamento pendente</option>
+                <option value="paid">Pagos</option>
+                <option value="rejected">Reprovados</option>
+                <option value="no_return">Sem retorno</option>
               </select>
             </div>
 
@@ -244,34 +249,41 @@ const Quotes = () => {
                             </button>
                             
                             {statusDropdownId === quote.id && (
-                              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-10 min-w-max">
+                              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-10 min-w-[220px]">
                                 <button
                                   onClick={() => handleChangeStatus(quote.id, 'pending')}
                                   disabled={updatingStatusId === quote.id}
                                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                                 >
-                                  Pendente
+                                  Aguardando resposta
                                 </button>
                                 <button
-                                  onClick={() => handleChangeStatus(quote.id, 'approved')}
+                                  onClick={() => handleChangeStatus(quote.id, 'pending_payment')}
                                   disabled={updatingStatusId === quote.id}
                                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                                 >
-                                  Aprovado
+                                  Aprovar · pagamento pendente
+                                </button>
+                                <button
+                                  onClick={() => handleChangeStatus(quote.id, 'paid')}
+                                  disabled={updatingStatusId === quote.id}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+                                >
+                                  Pago
                                 </button>
                                 <button
                                   onClick={() => handleChangeStatus(quote.id, 'rejected')}
                                   disabled={updatingStatusId === quote.id}
                                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                                 >
-                                  Rejeitado
+                                  Reprovar
                                 </button>
                                 <button
                                   onClick={() => handleChangeStatus(quote.id, 'no_return')}
                                   disabled={updatingStatusId === quote.id}
                                   className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
                                 >
-                                  Sem Retorno
+                                  Sem retorno
                                 </button>
                               </div>
                             )}
@@ -298,13 +310,50 @@ const Quotes = () => {
                         
                         {/* Action Buttons */}
                         <div className="mt-4 flex gap-2 flex-wrap">
+                          {(quote.status === 'pending' || quote.status === 'no_return') && (
+                            <>
+                              <button
+                                onClick={() => handleChangeStatus(quote.id, 'pending_payment')}
+                                disabled={updatingStatusId === quote.id}
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+                              >
+                                <CheckIcon className="h-4 w-4" />
+                                Aprovar
+                              </button>
+                              <button
+                                onClick={() => handleChangeStatus(quote.id, 'rejected')}
+                                disabled={updatingStatusId === quote.id}
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50"
+                              >
+                                <XMarkIcon className="h-4 w-4" />
+                                Reprovar
+                              </button>
+                            </>
+                          )}
+                          {(quote.status === 'pending_payment' || quote.status === 'approved') && (
+                            <button
+                              onClick={() => handleChangeStatus(quote.id, 'paid')}
+                              disabled={updatingStatusId === quote.id}
+                              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+                            >
+                              <CheckIcon className="h-4 w-4" />
+                              Registrar pagamento
+                            </button>
+                          )}
                           <button
                             onClick={() => handleViewPDF(quote.id)}
                             disabled={pdfLoadingId === quote.id}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <EyeIcon className="h-4 w-4" />
-                            {pdfLoadingId === quote.id ? 'Carregando...' : 'Visualizar PDF'}
+                            {pdfLoadingId === quote.id ? 'Gerando PDF...' : 'Visualizar PDF'}
+                          </button>
+                          <button
+                            onClick={() => navigate(`/quotes/${quote.id}`)}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600"
+                          >
+                            <DocumentTextIcon className="h-4 w-4" />
+                            Abrir
                           </button>
                           <button
                             onClick={() => navigate(`/quotes/${quote.id}/edit`)}
@@ -369,10 +418,10 @@ const Quotes = () => {
               Cancelar
             </button>
             <button
-              onClick={() => navigate('/plans')}
+              onClick={() => setShowLimitModal(false)}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Ver Planos
+              Entendi
             </button>
           </div>
         </div>

@@ -1,18 +1,19 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const { calculateProductPrice } = require('../utils/calculatePrice');
-
-const prisma = new PrismaClient();
 
 /**
  * Listar todos os produtos do usuário
  */
 const getProducts = async (req, res) => {
   try {
-    const userId = req.user.id;
-
+    const { search, limit = 40 } = req.query;
     const products = await prisma.product.findMany({
-      where: { userId },
+      where: {
+        companyId: req.companyId,
+        ...(search && { name: { contains: search, mode: 'insensitive' } }),
+      },
       orderBy: { createdAt: 'desc' },
+      take: Number(limit),
     });
 
     res.json(products);
@@ -28,12 +29,11 @@ const getProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
 
     const product = await prisma.product.findFirst({
-      where: { 
+      where: {
         id,
-        userId 
+        companyId: req.companyId,
       },
     });
 
@@ -53,7 +53,6 @@ const getProductById = async (req, res) => {
  */
 const createProduct = async (req, res) => {
   try {
-    const userId = req.user.id;
     const {
       name,
       description,
@@ -97,7 +96,8 @@ const createProduct = async (req, res) => {
         totalProductionCost: calculation.costs.total,
         minimumSalePrice: calculation.prices.minimumSalePrice,
         idealSalePrice: calculation.prices.idealSalePrice,
-        userId,
+        userId: req.userId,
+        companyId: req.companyId,
       },
     });
 
@@ -118,7 +118,6 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
     const {
       name,
       description,
@@ -133,7 +132,7 @@ const updateProduct = async (req, res) => {
 
     // Verificar se o produto existe e pertence ao usuário
     const existingProduct = await prisma.product.findFirst({
-      where: { id, userId },
+      where: { id, companyId: req.companyId },
     });
 
     if (!existingProduct) {
@@ -186,15 +185,25 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
 
-    // Verificar se o produto existe e pertence ao usuário
     const product = await prisma.product.findFirst({
-      where: { id, userId },
+      where: { id, companyId: req.companyId },
     });
 
     if (!product) {
       return res.status(404).json({ error: 'Produto não encontrado' });
+    }
+
+    const variantCount = await prisma.productVariant.count({
+      where: { productId: id },
+    });
+
+    if (variantCount > 0) {
+      await prisma.product.update({
+        where: { id },
+        data: { active: false },
+      });
+      return res.json({ message: 'Produto inativado porque possui variações' });
     }
 
     await prisma.product.delete({

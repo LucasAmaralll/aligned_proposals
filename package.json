@@ -1,7 +1,7 @@
 {
-  "name": "aligned-proposals",
+  "name": "aligned",
   "version": "1.0.0",
-  "description": "Sistema SaaS de orçamentos e propostas comerciais",
+  "description": "Aligned — gestão para lojas e fabricação de moda",
   "scripts": {
     "setup": "cd backend && npm install && cd ../frontend && npm install",
     "dev:backend": "cd backend && npm run dev",
@@ -10,7 +10,7 @@
     "prisma:generate": "cd backend && npx prisma generate",
     "prisma:migrate": "cd backend && npx prisma migrate dev",
     "prisma:studio": "cd backend && npx prisma studio",
-    "seed:plans": "echo 'Acesse http://localhost:5000/api/plans/seed no navegador'"
+    "seed:plans": "cd backend && npm run seed"
   },
   "keywords": [
     "saas",

@@ -1,8 +1,26 @@
 const PDFDocument = require('pdfkit');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { generateQuotePDFTemplate } = require('../templates/quote-pdf.template');
 const puppeteer = require('puppeteer');
+
+function resolveChromePath() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+    path.join(
+      os.homedir(),
+      '.cache/puppeteer/chrome/mac_arm-144.0.7559.96/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'
+    ),
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+  ].filter(Boolean);
+
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
 
 class PDFService {
   /**
@@ -13,50 +31,43 @@ class PDFService {
   async generateQuotePDFFromHTML(quote) {
     let browser;
     try {
-      console.log('🔄 Iniciando geração de PDF...');
-      
       const html = this.generateQuotePDFHTML(quote);
-      console.log('✅ Template HTML gerado');
-      
-      browser = await puppeteer.launch({
-        headless: 'new',
+      const executablePath = resolveChromePath();
+      const launchOptions = {
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu'
+          '--disable-gpu',
         ],
-        timeout: 60000
-      });
-      console.log('✅ Browser iniciado');
-      
+        timeout: 60000,
+      };
+
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+      }
+
+      browser = await puppeteer.launch(launchOptions);
       const page = await browser.newPage();
-      
-      // Aguardar conteúdo carregar
       await page.setContent(html, {
-        waitUntil: ['load', 'networkidle0'],
-        timeout: 30000
+        waitUntil: 'load',
+        timeout: 20000,
       });
-      console.log('✅ Conteúdo HTML carregado');
-      
-      // Gerar PDF
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
-        preferCSSPageSize: false,
+        preferCSSPageSize: true,
         margin: {
-          top: '20px',
-          right: '20px',
-          bottom: '20px',
-          left: '20px'
-        }
+          top: '0',
+          right: '0',
+          bottom: '0',
+          left: '0',
+        },
       });
-      console.log('✅ PDF gerado, tamanho:', pdfBuffer.length, 'bytes');
-      
+
       await browser.close();
-      console.log('✅ Browser fechado');
-      
       return pdfBuffer;
     } catch (error) {
       console.error('❌ Erro ao gerar PDF:', error);
@@ -104,7 +115,7 @@ class PDFService {
 
         const hasWatermark = quote.user.plan.hasWatermark;
         const items = JSON.parse(quote.items);
-        const companyName = quote.user.company || quote.user.name;
+        const companyName = quote.user.company?.name || quote.user.companyName || quote.user.name;
 
         // ==================== CABEÇALHO ====================
         // Fundo do cabeçalho
@@ -440,7 +451,7 @@ class PDFService {
              .fillColor('#6B7280')
              .font('Helvetica')
              .text(
-               `Gerado por Aligned Proposals | ${companyName} | Página ${i + 1} de ${pages.count}`,
+               `Gerado por Aligned | ${companyName} | Página ${i + 1} de ${pages.count}`,
                40,
                790,
                { align: 'center', width: 515 }

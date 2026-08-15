@@ -1,8 +1,11 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const pdfService = require('../services/pdf.service');
 const emailService = require('../services/email.service');
-
-const prisma = new PrismaClient();
+const {
+  QUOTE_STATUSES,
+  normalizeQuoteStatus,
+  canExpireQuote,
+} = require('../lib/quoteStatus');
 
 class QuoteController {
   async create(req, res) {
@@ -56,7 +59,7 @@ class QuoteController {
       const client = await prisma.client.findFirst({
         where: {
           id: clientId,
-          userId: req.userId
+          companyId: req.companyId,
         }
       });
 
@@ -73,6 +76,9 @@ class QuoteController {
           deletionStatus: 1,
           user: {
             connect: { id: req.userId }
+          },
+          company: {
+            connect: { id: req.companyId }
           },
           client: {
             connect: { id: clientId }
@@ -92,7 +98,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -117,7 +123,7 @@ class QuoteController {
       const { search, status, clientId, page = 1, limit = 10 } = req.query;
 
       const where = {
-        userId: req.userId,
+        companyId: req.companyId,
         deletionStatus: 1, // Apenas orçamentos ativos
         ...(status && { status }),
         ...(clientId && { clientId }),
@@ -147,7 +153,7 @@ class QuoteController {
       const quotesToUpdate = [];
       
       for (const quote of quotes) {
-        if (quote.validUntil && quote.status !== 'rejected' && quote.status !== 'no_return') {
+        if (quote.validUntil && canExpireQuote(quote.status)) {
           const validUntilDate = new Date(quote.validUntil);
           if (now > validUntilDate) {
             quotesToUpdate.push(quote.id);
@@ -197,12 +203,12 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          companyId: req.companyId
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -211,13 +217,11 @@ class QuoteController {
         return res.status(404).json({ error: 'Orçamento não encontrado' });
       }
 
-      // Verificar se passou da data de vencimento e ainda está pendente/aprovado
-      if (quote.validUntil && quote.status !== 'rejected' && quote.status !== 'no_return') {
+      if (quote.validUntil && canExpireQuote(quote.status)) {
         const now = new Date();
         const validUntilDate = new Date(quote.validUntil);
         
         if (now > validUntilDate) {
-          // Atualizar para no_return
           await prisma.quote.update({
             where: { id },
             data: { status: 'no_return' }
@@ -249,10 +253,11 @@ class QuoteController {
           user: {
             select: {
               name: true,
-              company: true,
+              companyName: true,
               email: true,
               phone: true,
-              logo: true
+              logo: true,
+              company: true
             }
           }
         }
@@ -289,7 +294,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -342,7 +347,7 @@ class QuoteController {
       const quoteExists = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          companyId: req.companyId
         }
       });
 
@@ -352,13 +357,20 @@ class QuoteController {
 
       // Se apenas status está sendo atualizado (nenhum outro campo foi fornecido), apenas atualizar o status
       if (status && !title && !description && !items && !discount && !tax && !notes && !termsConditions && !paymentTerms && !internalNotes && !additionalInfo && validUntil === undefined) {
+        const nextStatus = normalizeQuoteStatus(status);
+        if (!QUOTE_STATUSES.includes(nextStatus)) {
+          return res.status(400).json({ error: 'Status inválido' });
+        }
+
+        // Atacado: aprovar não baixa estoque. O pedido fica com pagamento pendente
+        // até a integração de pagamento (ou registro manual de pago).
         const quote = await prisma.quote.update({
           where: { id },
-          data: { status },
+          data: { status: nextStatus },
           include: {
             client: true,
             user: {
-              include: { plan: true }
+              include: { plan: true, company: true }
             }
           }
         });
@@ -411,7 +423,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -436,7 +448,7 @@ class QuoteController {
       const quoteExists = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         }
       });
@@ -465,13 +477,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -522,13 +534,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -560,13 +572,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
