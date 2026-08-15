@@ -1,6 +1,7 @@
 const prisma = require('../src/lib/prisma');
 const bcrypt = require('bcryptjs');
 const { ensureRoles } = require('../src/services/tenant.service');
+const { ensureDefaultRegister } = require('../src/services/cash.service');
 
 async function seedPlans() {
   const existingPlans = await prisma.plan.findMany();
@@ -66,7 +67,7 @@ async function upsertCompany({ name, slug, document, units }) {
           name: unit.name,
         },
       },
-      update: { type: unit.type, active: true },
+      update: { type: unit.type },
       create: {
         companyId: company.id,
         name: unit.name,
@@ -78,19 +79,49 @@ async function upsertCompany({ name, slug, document, units }) {
   return prisma.company.findUnique({
     where: { id: company.id },
     include: { units: { orderBy: { name: 'asc' } } },
+  }).then(async (fresh) => {
+    for (const unit of (fresh.units || []).filter((item) => item.active)) {
+      await ensureDefaultRegister(fresh.id, unit.id);
+    }
+    return fresh;
+  });
+}
+
+function resolveDemoUnits(company, unitNames = []) {
+  const active = (company.units || []).filter((unit) => unit.active);
+  const matched = active.filter((unit) => unitNames.includes(unit.name));
+  if (matched.length === unitNames.length && matched.length > 0) {
+    return matched;
+  }
+  if (unitNames.length > 1) {
+    return active.length ? active : matched;
+  }
+  const store = active.find((unit) => unit.type === 'store') || active[0];
+  return store ? [store] : [];
+}
+
+async function syncUserUnits(userId, units) {
+  if (!units.length) return;
+  await prisma.userUnit.deleteMany({ where: { userId } });
+  await prisma.userUnit.createMany({
+    data: units.map((unit) => ({ userId, unitId: unit.id })),
+    skipDuplicates: true,
   });
 }
 
 async function upsertDemoUser({ email, name, password, company, role, unitNames, commissionRate, salary }) {
+  const units = resolveDemoUnits(company, unitNames);
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    console.log(`Usuário ${email} já existe.`);
+    await syncUserUnits(existing.id, units);
+    console.log(
+      `Usuário ${email} já existe. Unidades: ${units.map((unit) => unit.name).join(', ') || 'nenhuma'}.`
+    );
     return existing;
   }
 
   const hashed = await bcrypt.hash(password, 10);
   const freePlan = await prisma.plan.findUnique({ where: { name: 'Gratuito' } });
-  const units = company.units.filter((unit) => unitNames.includes(unit.name));
 
   const user = await prisma.user.create({
     data: {

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
 import Button from '../components/Button';
@@ -10,7 +10,12 @@ import api from '../services/api';
 import {
   formatClientNumber,
   formatCurrency,
+  formatDocument,
+  formatPhone,
+  formatZipCode,
   getPaymentMethodLabel,
+  getSaleChannelLabel,
+  inferClientKind,
   PAYMENT_METHOD_LABELS,
 } from '../utils/helpers';
 
@@ -20,12 +25,24 @@ const Pos = () => {
   const navigate = useNavigate();
   const { currentUnit } = useCompany();
   const [search, setSearch] = useState('');
+  const [cashSession, setCashSession] = useState(undefined);
   const [cart, setCart] = useState([]);
   const [clientQuery, setClientQuery] = useState('');
   const [client, setClient] = useState(null);
+  const [channel, setChannel] = useState('retail');
   const [saleDiscount, setSaleDiscount] = useState('0');
   const [payments, setPayments] = useState([{ method: 'pix', amount: '' }]);
   const [notes, setNotes] = useState('');
+  const [ship, setShip] = useState(false);
+  const [shipping, setShipping] = useState({
+    recipientName: '',
+    phone: '',
+    document: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+  });
   const [saving, setSaving] = useState(false);
 
   const totals = useMemo(() => {
@@ -47,6 +64,25 @@ const Pos = () => {
       return current;
     });
   }, [totals.total]);
+
+  useEffect(() => {
+    if (!currentUnit?.id) {
+      setCashSession(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get('/cash/sessions/current', { params: { unitId: currentUnit.id } })
+      .then((response) => {
+        if (!cancelled) setCashSession(response.data.session || null);
+      })
+      .catch(() => {
+        if (!cancelled) setCashSession(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUnit?.id]);
 
   const searchProducts = useCallback(
     async (term) => {
@@ -121,13 +157,43 @@ const Pos = () => {
 
   const paid = money(payments.reduce((sum, payment) => sum + money(payment.amount), 0));
 
+  const fillShippingFromClient = (item) => ({
+    recipientName: item?.name || '',
+    phone: formatPhone(item?.phone),
+    document: formatDocument(item?.document),
+    address: item?.address || '',
+    city: item?.city || '',
+    state: item?.state || '',
+    zipCode: formatZipCode(item?.zipCode),
+  });
+
   const handleSubmit = async () => {
+    if (!currentUnit?.id) {
+      alert('Selecione uma unidade');
+      return;
+    }
+    if (!cashSession) {
+      alert('Abra o caixa para continuar');
+      return;
+    }
     if (!cart.length) {
       alert('Adicione um item');
       return;
     }
+    if (channel === 'wholesale' && !client) {
+      alert('Atacado precisa de um cliente pessoa jurídica');
+      return;
+    }
+    if (channel === 'wholesale' && inferClientKind(client.document) !== 'company') {
+      alert('Atacado precisa de um cliente com CNPJ');
+      return;
+    }
     if (Math.abs(paid - totals.total) > 0.01) {
       alert(`Pagamentos devem fechar ${formatCurrency(totals.total)}`);
+      return;
+    }
+    if (ship && !shipping.recipientName.trim()) {
+      alert('Para enviar pelos Correios, informe quem recebe');
       return;
     }
 
@@ -136,8 +202,12 @@ const Pos = () => {
       const response = await api.post('/sales', {
         unitId: currentUnit.id,
         clientId: client?.id || null,
+        channel,
+        origin: 'store',
         discount: money(saleDiscount),
         notes: notes || undefined,
+        ship,
+        shipping: ship ? shipping : undefined,
         items: cart.map((item) => ({
           variantId: item.variantId,
           quantity: item.quantity,
@@ -174,10 +244,20 @@ const Pos = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Nova venda</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Unidade: {currentUnit?.name || 'selecione no header'}
+              Unidade: {currentUnit?.name || 'selecione no header'} · {getSaleChannelLabel(channel)}
             </p>
           </div>
         </div>
+
+        {cashSession === null && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+            O caixa desta unidade está fechado.{' '}
+            <Link to="/cash" className="font-semibold underline">
+              Abrir caixa
+            </Link>{' '}
+            para finalizar vendas no PDV.
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-5 gap-6">
           <div className="lg:col-span-3 space-y-4">
@@ -281,6 +361,31 @@ const Pos = () => {
 
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+              <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Tipo da venda</h2>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setChannel('retail')}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                    channel === 'retail'
+                      ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                      : 'border-gray-200 text-gray-700 dark:border-zinc-700 dark:text-gray-300'
+                  }`}
+                >
+                  Varejo · PF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChannel('wholesale')}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                    channel === 'wholesale'
+                      ? 'border-gray-900 bg-gray-900 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                      : 'border-gray-200 text-gray-700 dark:border-zinc-700 dark:text-gray-300'
+                  }`}
+                >
+                  Atacado · PJ
+                </button>
+              </div>
               <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Cliente</h2>
               <Typeahead
                 value={clientQuery}
@@ -288,6 +393,8 @@ const Pos = () => {
                 fetchOptions={searchClients}
                 onSelect={(item) => {
                   setClient(item);
+                  setChannel(inferClientKind(item.document) === 'company' ? 'wholesale' : 'retail');
+                  setShipping(fillShippingFromClient(item));
                   setClientQuery('');
                 }}
                 selected={client}
@@ -296,19 +403,35 @@ const Pos = () => {
                     <p className="font-medium">{client?.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       #{formatClientNumber(client?.number)}
+                      {client?.document ? ` · ${formatDocument(client.document)}` : ''}
                     </p>
                   </div>
                 }
-                onClear={() => setClient(null)}
-                placeholder="Buscar cliente ou deixar avulso"
+                onClear={() => {
+                  setClient(null);
+                  setChannel('retail');
+                }}
+                placeholder={channel === 'wholesale' ? 'Buscar loja / CNPJ' : 'Buscar cliente ou deixar avulso'}
                 hint="Digite nome, número, CPF, CNPJ ou telefone"
                 emptyText="Nenhum cliente encontrado"
                 renderOption={(item) => (
-                  <p className="text-sm text-gray-900 dark:text-white">
-                    #{formatClientNumber(item.number)} · {item.name}
-                  </p>
+                  <div>
+                    <p className="text-sm text-gray-900 dark:text-white">
+                      #{formatClientNumber(item.number)} · {item.name}
+                    </p>
+                    {item.document && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatDocument(item.document)}
+                      </p>
+                    )}
+                  </div>
                 )}
               />
+              {channel === 'wholesale' && (
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-2">
+                  Atacado pode entrar pelo PDV, pelo site ou depois de um orçamento. O orçamento em si não é a venda.
+                </p>
+              )}
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -395,7 +518,63 @@ const Pos = () => {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
 
-            <Button type="button" className="w-full" disabled={saving || !cart.length} onClick={handleSubmit}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={ship}
+                  onChange={(e) => setShip(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-gray-900 dark:text-white">Enviar pelos Correios</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    Entra na fila de Envios. Deixe desmarcado se a pessoa leva agora.
+                  </span>
+                </span>
+              </label>
+              {ship && (
+                <div className="space-y-3 pt-2">
+                  <Input
+                    label="Quem recebe"
+                    value={shipping.recipientName}
+                    onChange={(e) => setShipping((current) => ({ ...current, recipientName: e.target.value }))}
+                  />
+                  <Input
+                    label="Telefone"
+                    value={shipping.phone}
+                    onChange={(e) => setShipping((current) => ({ ...current, phone: formatPhone(e.target.value) }))}
+                  />
+                  <Input
+                    label="Endereço"
+                    value={shipping.address}
+                    onChange={(e) => setShipping((current) => ({ ...current, address: e.target.value }))}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      label="Cidade"
+                      value={shipping.city}
+                      onChange={(e) => setShipping((current) => ({ ...current, city: e.target.value }))}
+                    />
+                    <Input
+                      label="UF"
+                      value={shipping.state}
+                      onChange={(e) =>
+                        setShipping((current) => ({ ...current, state: e.target.value.toUpperCase().slice(0, 2) }))
+                      }
+                    />
+                  </div>
+                  <Input
+                    label="CEP"
+                    value={shipping.zipCode}
+                    onChange={(e) => setShipping((current) => ({ ...current, zipCode: formatZipCode(e.target.value) }))}
+                    placeholder="00000-000"
+                  />
+                </div>
+              )}
+            </div>
+
+            <Button type="button" className="w-full" disabled={saving || !cart.length || !cashSession} onClick={handleSubmit}>
               {saving ? 'Finalizando...' : `Finalizar ${formatCurrency(totals.total)}`}
             </Button>
           </div>

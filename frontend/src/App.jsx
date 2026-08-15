@@ -34,7 +34,10 @@ import SaleDetail from './pages/SaleDetail';
 import SaleReturn from './pages/SaleReturn';
 import SaleExchange from './pages/SaleExchange';
 import Expenses from './pages/Expenses';
+import Cash from './pages/Cash';
 import Team from './pages/Team';
+import Shipments from './pages/Shipments';
+import ShipmentForm from './pages/ShipmentForm';
 import RequirePermission from './components/RequirePermission';
 
 function App() {
@@ -197,6 +200,42 @@ function App() {
               element={
                 <PrivateRoute>
                   <SaleDetail />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/cash"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="cash.read">
+                    <Cash />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/shipments"
+              element={
+                <PrivateRoute>
+                  <Shipments />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/shipments/new"
+              element={
+                <PrivateRoute>
+                  <ShipmentForm />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/shipments/:id/edit"
+              element={
+                <PrivateRoute>
+                  <ShipmentForm />
                 </PrivateRoute>
               }
             />

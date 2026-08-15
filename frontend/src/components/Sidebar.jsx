@@ -20,10 +20,12 @@ import {
   ArchiveBoxIcon,
   ShoppingBagIcon,
   BanknotesIcon,
+  TruckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Bars3Icon,
   UsersIcon,
+  WalletIcon,
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -41,6 +43,8 @@ const Sidebar = () => {
       items: [
         { name: isSeller ? 'Meu desempenho' : 'Dashboard', icon: HomeIcon, path: '/dashboard' },
         { name: 'Vendas', icon: ShoppingBagIcon, path: '/sales' },
+        { name: 'Caixa', icon: WalletIcon, path: '/cash', permission: 'cash.read' },
+        { name: 'Envios', icon: TruckIcon, path: '/shipments' },
         { name: 'Clientes', icon: UserGroupIcon, path: '/clients' },
         { name: 'Orçamentos', icon: DocumentTextIcon, path: '/quotes' },
       ],

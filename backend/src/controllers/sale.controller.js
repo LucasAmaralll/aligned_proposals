@@ -1,10 +1,18 @@
-const { createSale, listSales, getSaleById, SaleError } = require('../services/sale.service');
+const { createSale, listSales, getSaleById, cancelSale, SaleError } = require('../services/sale.service');
 const { createReturn, createExchange, AftersaleError } = require('../services/aftersale.service');
 const { StockError } = require('../services/stock.service');
+const { CashError } = require('../services/cash.service');
 const { isSeller } = require('../middlewares/permission.middleware');
+const { handleAccess } = require('../lib/access');
 
 function handleError(res, error) {
-  if (error instanceof SaleError || error instanceof StockError || error instanceof AftersaleError) {
+  if (handleAccess(res, error)) return;
+  if (
+    error instanceof SaleError ||
+    error instanceof StockError ||
+    error instanceof AftersaleError ||
+    error instanceof CashError
+  ) {
     return res.status(error.status).json({ error: error.message });
   }
   console.error('Erro de venda:', error);
@@ -22,6 +30,9 @@ class SaleController {
         page: req.query.page,
         limit: req.query.limit,
         sellerId: isSeller(req.user) ? req.userId : undefined,
+        channel: req.query.channel || undefined,
+        origin: req.query.origin || undefined,
+        user: req.user,
       });
       return res.json(result);
     } catch (error) {
@@ -35,6 +46,7 @@ class SaleController {
         companyId: req.companyId,
         id: req.params.id,
         sellerId: isSeller(req.user) ? req.userId : undefined,
+        user: req.user,
       });
       return res.json(sale);
     } catch (error) {
@@ -48,6 +60,7 @@ class SaleController {
       const sale = await createSale({
         companyId: req.companyId,
         userId: req.userId,
+        user: req.user,
         unitId,
         clientId: req.body.clientId,
         items: req.body.items,
@@ -55,6 +68,10 @@ class SaleController {
         discount: req.body.discount,
         notes: req.body.notes,
         origin: req.body.origin,
+        channel: req.body.channel,
+        quoteId: req.body.quoteId,
+        ship: Boolean(req.body.ship),
+        shipping: req.body.shipping || {},
       });
       return res.status(201).json(sale);
     } catch (error) {
@@ -67,6 +84,7 @@ class SaleController {
       const record = await createReturn({
         companyId: req.companyId,
         userId: req.userId,
+        user: req.user,
         saleId: req.params.id,
         items: req.body.items,
         reason: req.body.reason,
@@ -84,6 +102,7 @@ class SaleController {
       const record = await createExchange({
         companyId: req.companyId,
         userId: req.userId,
+        user: req.user,
         saleId: req.params.id,
         returnItems: req.body.returnItems,
         newItems: req.body.newItems,
@@ -92,6 +111,21 @@ class SaleController {
         sellerId: isSeller(req.user) ? req.userId : undefined,
       });
       return res.status(201).json(record);
+    } catch (error) {
+      return handleError(res, error);
+    }
+  }
+
+  async cancel(req, res) {
+    try {
+      const sale = await cancelSale({
+        companyId: req.companyId,
+        userId: req.userId,
+        id: req.params.id,
+        reason: req.body.reason,
+        user: req.user,
+      });
+      return res.json(sale);
     } catch (error) {
       return handleError(res, error);
     }

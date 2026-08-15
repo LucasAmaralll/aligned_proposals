@@ -3,20 +3,32 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Layout from '../components/Layout';
 import Loading from '../components/Loading';
+import Button from '../components/Button';
+import Modal from '../components/Modal';
+import { useCompany } from '../context/CompanyContext';
 import api from '../services/api';
 import {
   formatClientNumber,
   formatCurrency,
   formatDateTime,
   formatSaleNumber,
+  formatShipmentNumber,
   getPaymentMethodLabel,
+  getSaleChannelLabel,
+  getSaleOriginLabel,
+  getSaleStatusLabel,
+  getShipmentStatusLabel,
 } from '../utils/helpers';
 
 const SaleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can } = useCompany();
   const [sale, setSale] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadSale();
@@ -47,6 +59,32 @@ const SaleDetail = () => {
 
   if (!sale) return null;
 
+  const isCancelled = sale.status === 'cancelled';
+  const hasAftersale = Boolean(sale.returns?.length || sale.exchanges?.length);
+  const hasShipped = sale.shipments?.some((item) => item.status === 'shipped');
+  const canCancel =
+    can('sales.cancel') && sale.status === 'completed' && !hasAftersale && !hasShipped;
+
+  const handleCancel = async () => {
+    if (!cancelReason.trim()) {
+      alert('Informe o motivo do cancelamento');
+      return;
+    }
+    try {
+      setCancelling(true);
+      const response = await api.post(`/sales/${sale.id}/cancel`, {
+        reason: cancelReason.trim(),
+      });
+      setSale(response.data);
+      setCancelOpen(false);
+      setCancelReason('');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Erro ao cancelar venda');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
     <Layout title={`Venda #${formatSaleNumber(sale.number)}`}>
       <div className="max-w-4xl mx-auto space-y-6">
@@ -58,46 +96,87 @@ const SaleDetail = () => {
             <ArrowLeftIcon className="h-5 w-5" />
             Voltar
           </button>
-          <div className="flex gap-3">
-            <Link
-              to={`/sales/${sale.id}/return`}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Devolver
-            </Link>
-            <Link
-              to={`/sales/${sale.id}/exchange`}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Trocar
-            </Link>
+          <div className="flex gap-3 flex-wrap justify-end">
+            {!isCancelled && (
+              <>
+                <Link
+                  to={`/sales/${sale.id}/return`}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Devolver
+                </Link>
+                <Link
+                  to={`/sales/${sale.id}/exchange`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Trocar
+                </Link>
+                {sale.shipments?.some((item) => item.status === 'pending') ? (
+                  <Link
+                    to="/shipments"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Ver envio
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/shipments/new?saleId=${sale.id}`}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Criar envio
+                  </Link>
+                )}
+              </>
+            )}
+            {canCancel && (
+              <Button type="button" variant="danger" onClick={() => setCancelOpen(true)}>
+                Cancelar venda
+              </Button>
+            )}
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex justify-between gap-4 mb-6">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Venda #{formatSaleNumber(sale.number)}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Venda #{formatSaleNumber(sale.number)} · {getSaleStatusLabel(sale.status)}
+              </p>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(sale.total)}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">{formatDateTime(sale.createdAt)}</p>
+              {isCancelled && (
+                <p className="mt-3 text-sm text-red-700 dark:text-red-300">
+                  Cancelada em {formatDateTime(sale.cancelledAt)}
+                  {sale.cancelledBy?.name ? ` por ${sale.cancelledBy.name}` : ''}
+                  {sale.cancelReason ? ` · ${sale.cancelReason}` : ''}
+                </p>
+              )}
             </div>
             <div className="text-right text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <p>{sale.unit?.name}</p>
+              <p>{getSaleChannelLabel(sale.channel)} · {getSaleOriginLabel(sale.origin)}</p>
               <p>Vendedor: {sale.seller?.name}</p>
-              <p>Origem: {sale.origin === 'ecommerce' ? 'E-commerce' : 'Loja'}</p>
             </div>
           </div>
 
           <div className="text-sm">
             <p className="text-gray-500 dark:text-gray-400">Cliente</p>
-            {sale.client ? (
+              {sale.client ? (
               <Link to={`/clients/${sale.client.id}`} className="text-blue-600 dark:text-blue-400">
                 #{formatClientNumber(sale.client.number)} · {sale.client.name}
               </Link>
             ) : (
               <p className="text-gray-900 dark:text-white">Cliente avulso</p>
+            )}
+            {sale.quote && (
+              <p className="mt-2 text-sm text-gray-500 dark:text-zinc-400">
+                Veio do orçamento{' '}
+                <Link to={`/quotes/${sale.quote.id}`} className="underline">
+                  {sale.quote.title}
+                </Link>
+              </p>
             )}
           </div>
         </div>
@@ -125,7 +204,7 @@ const SaleDetail = () => {
                   </td>
                   <td className="py-3 pr-4 text-sm text-gray-900 dark:text-white">
                     {parseFloat(item.quantity)}
-                    {item.remainingQuantity !== undefined && (
+                    {item.remainingQuantity !== undefined && sale.status !== 'cancelled' && (
                       <span className="block text-xs text-gray-500 dark:text-gray-400">
                         restam {parseFloat(item.remainingQuantity)}
                       </span>
@@ -162,6 +241,31 @@ const SaleDetail = () => {
           )}
         </div>
 
+        {(sale.shipments?.length > 0) && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-3">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Envios</h2>
+            {sale.shipments.map((item) => (
+              <div key={item.id} className="flex justify-between gap-4 text-sm">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Envio #{formatShipmentNumber(item.number)} · {getShipmentStatusLabel(item.status)}
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {item.recipientName}
+                    {item.city ? ` · ${item.city}` : ''}
+                    {item.trackingCode ? ` · ${item.trackingCode}` : ''}
+                  </p>
+                </div>
+                {item.status === 'pending' && (
+                  <Link to={`/shipments/${item.id}/edit`} className="text-blue-600 dark:text-blue-400">
+                    Editar
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {(sale.returns?.length > 0 || sale.exchanges?.length > 0) && (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 space-y-4">
             <h2 className="font-semibold text-gray-900 dark:text-white">Trocas e devoluções</h2>
@@ -190,6 +294,41 @@ const SaleDetail = () => {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={cancelOpen}
+        onClose={() => !cancelling && setCancelOpen(false)}
+        title="Cancelar venda"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            A venda #{formatSaleNumber(sale.number)} permanece no histórico como cancelada.
+            O estoque volta para {sale.unit?.name}. Envio ainda na fila também é cancelado.
+            Isso não dá para desfazer.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Motivo
+            </label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="Ex.: lançamento duplicado no PDV"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="secondary" onClick={() => setCancelOpen(false)} disabled={cancelling}>
+              Voltar
+            </Button>
+            <Button type="button" variant="danger" onClick={handleCancel} disabled={cancelling}>
+              {cancelling ? 'Cancelando...' : 'Confirmar cancelamento'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 };

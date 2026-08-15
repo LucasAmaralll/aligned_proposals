@@ -1,5 +1,8 @@
 const prisma = require('../lib/prisma');
 const { applyMovement, StockError } = require('./stock.service');
+const { assertUnitAccess } = require('../lib/access');
+const { hasPermission } = require('../lib/roles');
+const { getOpenSessionForUnit, recordRefund } = require('./cash.service');
 
 const PAYMENT_METHODS = new Set(['cash', 'pix', 'debit', 'credit', 'other']);
 
@@ -59,13 +62,19 @@ async function remainingBySaleItem(saleId, db) {
   );
 }
 
-async function loadSale(companyId, saleId, db, sellerId) {
+async function loadSale(companyId, saleId, db, { sellerId, user } = {}) {
   const sale = await db.sale.findFirst({
     where: { id: saleId, companyId, ...(sellerId && { sellerId }) },
     include: { items: true, unit: true },
   });
   if (!sale) {
     throw new AftersaleError('Venda não encontrada', 404);
+  }
+  if (sale.status === 'cancelled') {
+    throw new AftersaleError('Não é possível devolver ou trocar uma venda cancelada');
+  }
+  if (user) {
+    assertUnitAccess(user, sale.unitId);
   }
   return sale;
 }
@@ -78,13 +87,13 @@ function assertMethod(method, amount) {
   return method;
 }
 
-async function createReturn({ companyId, userId, saleId, items = [], reason, method, sellerId }) {
+async function createReturn({ companyId, userId, saleId, items = [], reason, method, sellerId, user }) {
   if (!items.length) {
     throw new AftersaleError('Selecione pelo menos um item para devolver');
   }
 
   return prisma.$transaction(async (tx) => {
-    const sale = await loadSale(companyId, saleId, tx, sellerId);
+    const sale = await loadSale(companyId, saleId, tx, { sellerId, user });
     const remaining = await remainingBySaleItem(sale.id, tx);
     const saleItems = new Map(sale.items.map((item) => [item.id, item]));
 
@@ -116,6 +125,14 @@ async function createReturn({ companyId, userId, saleId, items = [], reason, met
 
     const refundAmount = money(prepared.reduce((sum, item) => sum + item.total, 0));
     const refundMethod = assertMethod(method, refundAmount);
+    const needsCashOut = refundMethod === 'cash' && refundAmount > 0.009;
+    const session = await getOpenSessionForUnit(
+      companyId,
+      sale.unitId,
+      user,
+      { required: needsCashOut },
+      tx
+    );
     const number = await nextNumber('saleReturn', companyId, tx);
 
     const record = await tx.saleReturn.create({
@@ -128,6 +145,7 @@ async function createReturn({ companyId, userId, saleId, items = [], reason, met
         unitId: sale.unitId,
         saleId: sale.id,
         createdById: userId,
+        cashSessionId: session?.id || null,
         items: {
           create: prepared.map((item) => ({
             quantity: item.quantity,
@@ -143,6 +161,20 @@ async function createReturn({ companyId, userId, saleId, items = [], reason, met
         },
       },
     });
+
+    if (needsCashOut) {
+      await recordRefund(
+        {
+          session,
+          amount: refundAmount,
+          userId,
+          reason: `Devolução #${String(number).padStart(4, '0')} da venda #${String(sale.number).padStart(4, '0')}`,
+          referenceType: 'return',
+          referenceId: record.id,
+        },
+        tx
+      );
+    }
 
     for (const item of prepared) {
       await applyMovement(
@@ -176,6 +208,7 @@ async function createExchange({
   reason,
   method,
   sellerId,
+  user,
 }) {
   if (!returnItems.length) {
     throw new AftersaleError('Selecione o que volta para a loja');
@@ -185,7 +218,7 @@ async function createExchange({
   }
 
   return prisma.$transaction(async (tx) => {
-    const sale = await loadSale(companyId, saleId, tx, sellerId);
+    const sale = await loadSale(companyId, saleId, tx, { sellerId, user });
     const remaining = await remainingBySaleItem(sale.id, tx);
     const saleItems = new Map(sale.items.map((item) => [item.id, item]));
 
@@ -222,16 +255,25 @@ async function createExchange({
     });
     const variantMap = new Map(variants.map((variant) => [variant.id, variant]));
 
+    const canDiscount = user ? hasPermission(user, 'sales.discount') : true;
     const outgoing = newItems.map((input, index) => {
       const variant = variantMap.get(input.variantId);
       if (!variant) {
         throw new AftersaleError(`Item novo ${index + 1}: variação não encontrada`);
       }
       const quantity = qty(input.quantity);
-      const unitPrice = money(input.unitPrice ?? variant.salePrice);
-      if (!quantity || quantity <= 0 || Number.isNaN(unitPrice) || unitPrice < 0) {
+      const catalogPrice = money(variant.salePrice);
+      const requestedPrice =
+        input.unitPrice === undefined || input.unitPrice === null || input.unitPrice === ''
+          ? catalogPrice
+          : money(input.unitPrice);
+      if (!quantity || quantity <= 0 || Number.isNaN(requestedPrice) || requestedPrice < 0) {
         throw new AftersaleError(`Item ${variant.sku}: quantidade ou preço inválido`);
       }
+      if (!canDiscount && requestedPrice !== catalogPrice) {
+        throw new AftersaleError('Sem permissão para alterar o preço', 403);
+      }
+      const unitPrice = canDiscount ? requestedPrice : catalogPrice;
       return {
         variant,
         quantity,
@@ -244,6 +286,14 @@ async function createExchange({
     const debit = money(outgoing.reduce((sum, item) => sum + item.total, 0));
     const difference = money(debit - credit);
     const settlementMethod = assertMethod(method, difference);
+    const cashImpact = settlementMethod === 'cash' && Math.abs(difference) > 0.009;
+    const session = await getOpenSessionForUnit(
+      companyId,
+      sale.unitId,
+      user,
+      { required: cashImpact },
+      tx
+    );
     const number = await nextNumber('exchange', companyId, tx);
 
     const record = await tx.exchange.create({
@@ -256,6 +306,7 @@ async function createExchange({
         unitId: sale.unitId,
         saleId: sale.id,
         createdById: userId,
+        cashSessionId: session?.id || null,
         items: {
           create: [
             ...incoming.map((item) => ({
@@ -285,6 +336,20 @@ async function createExchange({
         },
       },
     });
+
+    if (difference < -0.009 && settlementMethod === 'cash') {
+      await recordRefund(
+        {
+          session,
+          amount: money(Math.abs(difference)),
+          userId,
+          reason: `Troca #${String(number).padStart(4, '0')} da venda #${String(sale.number).padStart(4, '0')}`,
+          referenceType: 'exchange',
+          referenceId: record.id,
+        },
+        tx
+      );
+    }
 
     for (const item of incoming) {
       await applyMovement(

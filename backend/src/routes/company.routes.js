@@ -15,5 +15,8 @@ router.get('/me/units', companyController.listUnits);
 router.post('/me/units', requirePermission('units.manage'), companyController.createUnit);
 router.put('/me/units/:id', requirePermission('units.manage'), companyController.updateUnit);
 router.delete('/me/units/:id', requirePermission('units.manage'), companyController.deactivateUnit);
+router.get('/me/api-keys', requirePermission('units.manage'), companyController.listApiKeys);
+router.post('/me/api-keys', requirePermission('units.manage'), companyController.createApiKey);
+router.delete('/me/api-keys/:id', requirePermission('units.manage'), companyController.revokeApiKey);
 
 module.exports = router;

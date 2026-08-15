@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { ROLE_DEFINITIONS } = require('../lib/roles');
 const { uniqueCompanySlug } = require('../lib/slug');
+const { ensureDefaultRegister } = require('./cash.service');
 
 const USER_TENANT_INCLUDE = {
   plan: true,
@@ -51,7 +52,7 @@ async function getRoleByName(name) {
 async function createCompanyWithUnit({ name, document, unitName = 'Matriz', unitType = 'store' }) {
   const slug = await uniqueCompanySlug(prisma, name);
 
-  return prisma.company.create({
+  const company = await prisma.company.create({
     data: {
       name,
       slug,
@@ -65,6 +66,12 @@ async function createCompanyWithUnit({ name, document, unitName = 'Matriz', unit
     },
     include: { units: true },
   });
+
+  for (const unit of company.units) {
+    await ensureDefaultRegister(company.id, unit.id);
+  }
+
+  return company;
 }
 
 async function provisionCompanyForUser(user) {

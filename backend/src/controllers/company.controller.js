@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { ensureDefaultRegister } = require('../services/cash.service');
 
 const ADDRESS_FIELDS = [
   'document',
@@ -141,6 +142,8 @@ class CompanyController {
         },
       });
 
+      await ensureDefaultRegister(req.companyId, unit.id);
+
       return res.status(201).json(unit);
     } catch (error) {
       if (error.code === 'P2002') {
@@ -209,6 +212,42 @@ class CompanyController {
     } catch (error) {
       console.error('Erro ao desativar loja:', error);
       return res.status(500).json({ error: 'Erro ao desativar loja' });
+    }
+  }
+
+  async listApiKeys(req, res) {
+    try {
+      const { listApiKeys } = require('../services/apiKey.service');
+      const keys = await listApiKeys(req.companyId);
+      return res.json({ keys });
+    } catch (error) {
+      console.error('Erro ao listar chaves:', error);
+      return res.status(500).json({ error: 'Erro ao listar chaves' });
+    }
+  }
+
+  async createApiKey(req, res) {
+    try {
+      const { createApiKey } = require('../services/apiKey.service');
+      const key = await createApiKey({
+        companyId: req.companyId,
+        userId: req.userId,
+        name: req.body.name,
+      });
+      return res.status(201).json(key);
+    } catch (error) {
+      console.error('Erro ao criar chave:', error);
+      return res.status(500).json({ error: 'Erro ao criar chave' });
+    }
+  }
+
+  async revokeApiKey(req, res) {
+    try {
+      const { revokeApiKey } = require('../services/apiKey.service');
+      await revokeApiKey({ companyId: req.companyId, id: req.params.id });
+      return res.json({ message: 'Chave desativada' });
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || 'Erro ao desativar chave' });
     }
   }
 }

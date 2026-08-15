@@ -10,7 +10,7 @@
     "prisma:generate": "cd backend && npx prisma generate",
     "prisma:migrate": "cd backend && npx prisma migrate dev",
     "prisma:studio": "cd backend && npx prisma studio",
-    "seed:plans": "echo 'Acesse http://localhost:5000/api/plans/seed no navegador'"
+    "seed:plans": "cd backend && npm run seed"
   },
   "keywords": [
     "saas",
