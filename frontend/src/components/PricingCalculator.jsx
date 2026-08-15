@@ -1,90 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Card from '../components/Card';
-import EnergyCalculator from '../components/EnergyCalculator';
-import MaterialCalculator from '../components/MaterialCalculator';
+import React, { useEffect, useState } from 'react';
+import Button from './Button';
+import Input from './Input';
+
+const emptyFabric = () => ({ name: '', meters: '', pricePerMeter: '', wastePercent: '10' });
+const emptyTrim = () => ({ name: '', quantity: '', unitCost: '' });
+
+const toForm = (data) => {
+  if (!data) {
+    return {
+      name: '',
+      description: '',
+      fabrics: [emptyFabric()],
+      trims: [emptyTrim()],
+      sewingMinutes: '',
+      laborCostPerHour: '',
+      finishingCost: '',
+      overheadPercent: '12',
+      profitMargin: '40',
+      retailMargin: '80',
+    };
+  }
+
+  const materials = Array.isArray(data.rawMaterials) ? data.rawMaterials : [];
+  const fabrics = materials.filter((item) => item.kind === 'fabric');
+  const trims = materials.filter((item) => item.kind === 'trim');
+  const legacy = materials.filter((item) => !item.kind);
+  const expenses = Array.isArray(data.expenses) ? data.expenses : [];
+
+  return {
+    name: data.name || '',
+    description: data.description || '',
+    fabrics: fabrics.length ? fabrics : [emptyFabric()],
+    trims: [
+      ...trims,
+      ...legacy.map((item) => ({ name: item.name, quantity: 1, unitCost: item.cost })),
+      ...(trims.length || legacy.length ? [] : [emptyTrim()]),
+    ],
+    sewingMinutes: data.productionTimeHours
+      ? String(Math.round(parseFloat(data.productionTimeHours) * 60))
+      : '',
+    laborCostPerHour: data.laborCostPerHour || '',
+    finishingCost: expenses.find((item) => item.type === 'variable')?.cost || '',
+    overheadPercent: expenses.find((item) => item.type === 'overhead')?.percent || '12',
+    profitMargin: data.profitMargin || '40',
+    retailMargin: expenses.find((item) => item.type === 'retail')?.percent || '80',
+  };
+};
+
+const toPayload = (form) => {
+  const rawMaterials = [
+    ...form.fabrics
+      .filter((item) => item.name || item.meters || item.pricePerMeter)
+      .map((item) => ({ ...item, kind: 'fabric' })),
+    ...form.trims
+      .filter((item) => item.name || item.quantity || item.unitCost)
+      .map((item) => ({ ...item, kind: 'trim' })),
+  ];
+
+  return {
+    name: form.name,
+    description: form.description,
+    rawMaterials,
+    productionTimeHours: (parseFloat(form.sewingMinutes || 0) / 60).toFixed(4),
+    laborCostPerHour: form.laborCostPerHour || 0,
+    profitMargin: form.profitMargin || 0,
+    energyConsumptionKwh: 0,
+    energyCostPerKwh: 0,
+    expenses: [
+      { name: 'Acabamento', type: 'variable', cost: form.finishingCost || 0 },
+      { name: 'Custos da fábrica', type: 'overhead', percent: form.overheadPercent || 0 },
+      { name: 'Margem da loja', type: 'retail', percent: form.retailMargin || 0 },
+    ],
+  };
+};
+
+const money = (value) =>
+  Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const Bar = ({ label, percent, color }) => (
+  <div className="flex items-center justify-between gap-3">
+    <span className="text-sm text-gray-700 dark:text-gray-300 w-32 shrink-0">{label}</span>
+    <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-zinc-800 overflow-hidden">
+      <div className={`h-2 rounded-full ${color}`} style={{ width: `${Math.min(percent || 0, 100)}%` }} />
+    </div>
+    <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
+      {(percent || 0).toFixed(0)}%
+    </span>
+  </div>
+);
 
 const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    rawMaterials: [{ name: '', cost: '' }],
-    productionTimeHours: '',
-    energyConsumptionKwh: '',
-    energyCostPerKwh: '',
-    laborCostPerHour: '',
-    expenses: [{ name: '', cost: '', type: 'fixed' }],
-    profitMargin: '',
-  });
-
+  const [form, setForm] = useState(() => toForm(initialData));
   const [calculation, setCalculation] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        description: initialData.description || '',
-        rawMaterials: initialData.rawMaterials || [{ name: '', cost: '' }],
-        productionTimeHours: initialData.productionTimeHours || '',
-        energyConsumptionKwh: initialData.energyConsumptionKwh || '',
-        energyCostPerKwh: initialData.energyCostPerKwh || '',
-        laborCostPerHour: initialData.laborCostPerHour || '',
-        expenses: initialData.expenses || [{ name: '', cost: '', type: 'fixed' }],
-        profitMargin: initialData.profitMargin || '',
-      });
-    }
+    if (initialData) setForm(toForm(initialData));
   }, [initialData]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const setField = (field) => (e) => setForm((current) => ({ ...current, [field]: e.target.value }));
 
-  const handleRawMaterialChange = (index, field, value) => {
-    const updated = [...formData.rawMaterials];
-    updated[index][field] = value;
-    setFormData((prev) => ({ ...prev, rawMaterials: updated }));
-  };
-
-  const addRawMaterial = () => {
-    setFormData((prev) => ({
-      ...prev,
-      rawMaterials: [...prev.rawMaterials, { name: '', cost: '' }],
+  const updateList = (key, index, field, value) => {
+    setForm((current) => ({
+      ...current,
+      [key]: current[key].map((item, i) => (i === index ? { ...item, [field]: value } : item)),
     }));
   };
 
-  const removeRawMaterial = (index) => {
-    const updated = formData.rawMaterials.filter((_, i) => i !== index);
-    setFormData((prev) => ({ ...prev, rawMaterials: updated }));
+  const addRow = (key, factory) => {
+    setForm((current) => ({ ...current, [key]: [...current[key], factory()] }));
   };
 
-  const handleExpenseChange = (index, field, value) => {
-    const updated = [...formData.expenses];
-    updated[index][field] = value;
-    setFormData((prev) => ({ ...prev, expenses: updated }));
-  };
-
-  const addExpense = () => {
-    setFormData((prev) => ({
-      ...prev,
-      expenses: [...prev.expenses, { name: '', cost: '', type: 'fixed' }],
+  const removeRow = (key, index) => {
+    setForm((current) => ({
+      ...current,
+      [key]: current[key].length === 1 ? current[key] : current[key].filter((_, i) => i !== index),
     }));
-  };
-
-  const removeExpense = (index) => {
-    const updated = formData.expenses.filter((_, i) => i !== index);
-    setFormData((prev) => ({ ...prev, expenses: updated }));
   };
 
   const handleCalculate = async () => {
     setIsCalculating(true);
     try {
-      const result = await onCalculate(formData);
+      const result = await onCalculate(toPayload(form));
       setCalculation(result);
     } catch (error) {
       console.error('Erro ao calcular:', error);
+      alert('Erro ao calcular o preço');
     } finally {
       setIsCalculating(false);
     }
@@ -92,337 +133,288 @@ const PricingCalculator = ({ onCalculate, initialData = null, onSave }) => {
 
   const handleSave = async () => {
     if (onSave) {
-      await onSave(formData, calculation);
+      await onSave(toPayload(form), calculation);
     }
-  };
-
-  const handleEnergyCalculation = (energyData) => {
-    setFormData(prev => ({
-      ...prev,
-      energyConsumptionKwh: energyData.energyConsumptionKwh,
-      energyCostPerKwh: energyData.energyCostPerKwh,
-    }));
   };
 
   return (
     <div className="space-y-6">
-      {/* Formulário */}
-      <Card>
-        <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Dados do Produto/Serviço</h2>
-
-        {/* Nome e Descrição */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Input
-            label="Nome do Produto/Serviço *"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Ex: Bolo de Chocolate"
-          />
-          <Input
-            label="Descrição"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Descrição opcional"
-          />
+      <div className="surface p-6 space-y-8">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">A peça</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Custo de uma unidade, do tecido até o preço sugerido na loja.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4 mt-4">
+            <Input
+              label="Nome da peça *"
+              value={form.name}
+              onChange={setField('name')}
+              placeholder="Ex: Vestido midi linho"
+            />
+            <Input
+              label="Referência / descrição"
+              value={form.description}
+              onChange={setField('description')}
+              placeholder="Ex: REF 014 · verão"
+            />
+          </div>
         </div>
 
-        {/* Matérias-primas */}
-        <div className="mb-6">
+        <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Matérias-Primas</h3>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Tecido</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Metros por peça, preço do metro e quebra de corte.</p>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => addRow('fabrics', emptyFabric)}>
+              + tecido
+            </Button>
           </div>
-          {formData.rawMaterials.map((material, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-              <Input
-                label={index === 0 ? 'Nome' : ''}
-                value={material.name}
-                onChange={(e) => handleRawMaterialChange(index, 'name', e.target.value)}
-                placeholder="Ex: Farinha de trigo"
-              />
-              <div>
+          {form.fabrics.map((item, index) => (
+            <div key={index} className="grid md:grid-cols-12 gap-3 mb-3">
+              <div className="md:col-span-4">
                 <Input
-                  label={index === 0 ? 'Custo (R$)' : ''}
+                  label={index === 0 ? 'Tecido' : ''}
+                  value={item.name}
+                  onChange={(e) => updateList('fabrics', index, 'name', e.target.value)}
+                  placeholder="Linho, malha, forro..."
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Input
+                  label={index === 0 ? 'Metros' : ''}
                   type="number"
                   step="0.01"
-                  value={material.cost}
-                  onChange={(e) => handleRawMaterialChange(index, 'cost', e.target.value)}
-                  placeholder="0.00"
+                  value={item.meters}
+                  onChange={(e) => updateList('fabrics', index, 'meters', e.target.value)}
                 />
-                <div className="mt-1">
-                  <MaterialCalculator 
-                    onCalculate={(cost) => {
-                      const updated = [...formData.rawMaterials];
-                      updated[index].cost = cost.toFixed(2);
-                      setFormData((prev) => ({ ...prev, rawMaterials: updated }));
-                    }}
-                  />
-                </div>
               </div>
-              <div className={index === 0 ? 'mt-8' : ''}>
-                <Button
-                  variant="danger"
-                  onClick={() => removeRawMaterial(index)}
-                  disabled={formData.rawMaterials.length === 1}
-                  className="w-full"
+              <div className="md:col-span-3">
+                <Input
+                  label={index === 0 ? 'R$ / metro' : ''}
+                  type="number"
+                  step="0.01"
+                  value={item.pricePerMeter}
+                  onChange={(e) => updateList('fabrics', index, 'pricePerMeter', e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Input
+                  label={index === 0 ? 'Quebra %' : ''}
+                  type="number"
+                  step="0.1"
+                  value={item.wastePercent}
+                  onChange={(e) => updateList('fabrics', index, 'wastePercent', e.target.value)}
+                />
+              </div>
+              <div className={`${index === 0 ? 'md:mt-8' : ''} md:col-span-1`}>
+                <button
+                  type="button"
+                  onClick={() => removeRow('fabrics', index)}
+                  className="text-sm text-red-600 dark:text-red-400 py-2"
                 >
-                  Remover
-                </Button>
+                  Tirar
+                </button>
               </div>
             </div>
           ))}
-          <Button variant="secondary" onClick={addRawMaterial}>
-            + Adicionar Matéria-Prima
-          </Button>
         </div>
 
-        {/* Tempo e Energia */}
-        <div className="mb-6">
+        <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tempo de Produção e Energia</h3>
-            <EnergyCalculator onCalculate={handleEnergyCalculation} />
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Aviamentos</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Zíper, botão, linha, etiqueta, elástico...</p>
+            </div>
+            <Button type="button" variant="secondary" onClick={() => addRow('trims', emptyTrim)}>
+              + aviamento
+            </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input
-              label="Tempo de Produção (horas)"
-              name="productionTimeHours"
-              type="number"
-              step="0.01"
-              value={formData.productionTimeHours}
-              onChange={handleChange}
-              placeholder="0.00"
-            />
-            <Input
-              label="Consumo de Energia (kWh)"
-              name="energyConsumptionKwh"
-              type="number"
-              step="0.001"
-              value={formData.energyConsumptionKwh}
-              onChange={handleChange}
-              placeholder="0.000"
-            />
-            <Input
-              label="Custo por kWh (R$)"
-              name="energyCostPerKwh"
-              type="number"
-              step="0.01"
-              value={formData.energyCostPerKwh}
-              onChange={handleChange}
-              placeholder="0.00"
-            />
-          </div>
-        </div>
-
-        {/* Mão de obra */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <Input
-            label="Custo de Mão de Obra por Hora (R$)"
-            name="laborCostPerHour"
-            type="number"
-            step="0.01"
-            value={formData.laborCostPerHour}
-            onChange={handleChange}
-            placeholder="0.00"
-          />
-          <Input
-            label="Margem de Lucro (%)"
-            name="profitMargin"
-            type="number"
-            step="0.01"
-            value={formData.profitMargin}
-            onChange={handleChange}
-            placeholder="0.00"
-          />
-        </div>
-
-        {/* Despesas */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Despesas Fixas e Variáveis</h3>
-          {formData.expenses.map((expense, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-              <Input
-                label={index === 0 ? 'Nome' : ''}
-                value={expense.name}
-                onChange={(e) => handleExpenseChange(index, 'name', e.target.value)}
-                placeholder="Ex: Aluguel"
-              />
-              <Input
-                label={index === 0 ? 'Custo (R$)' : ''}
-                type="number"
-                step="0.01"
-                value={expense.cost}
-                onChange={(e) => handleExpenseChange(index, 'cost', e.target.value)}
-                placeholder="0.00"
-              />
-              <div>
-                {index === 0 && <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-200">Tipo</label>}
-                <select
-                  value={expense.type}
-                  onChange={(e) => handleExpenseChange(index, 'type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="fixed">Fixa</option>
-                  <option value="variable">Variável</option>
-                </select>
+          {form.trims.map((item, index) => (
+            <div key={index} className="grid md:grid-cols-12 gap-3 mb-3">
+              <div className="md:col-span-5">
+                <Input
+                  label={index === 0 ? 'Item' : ''}
+                  value={item.name}
+                  onChange={(e) => updateList('trims', index, 'name', e.target.value)}
+                  placeholder="Zíper invisível 40cm"
+                />
               </div>
-              <div className={index === 0 ? 'mt-8' : ''}>
-                <Button
-                  variant="danger"
-                  onClick={() => removeExpense(index)}
-                  disabled={formData.expenses.length === 1}
+              <div className="md:col-span-2">
+                <Input
+                  label={index === 0 ? 'Qtd' : ''}
+                  type="number"
+                  step="0.01"
+                  value={item.quantity}
+                  onChange={(e) => updateList('trims', index, 'quantity', e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-4">
+                <Input
+                  label={index === 0 ? 'R$ unitário' : ''}
+                  type="number"
+                  step="0.01"
+                  value={item.unitCost}
+                  onChange={(e) => updateList('trims', index, 'unitCost', e.target.value)}
+                />
+              </div>
+              <div className={`${index === 0 ? 'md:mt-8' : ''} md:col-span-1`}>
+                <button
+                  type="button"
+                  onClick={() => removeRow('trims', index)}
+                  className="text-sm text-red-600 dark:text-red-400 py-2"
                 >
-                  Remover
-                </Button>
+                  Tirar
+                </button>
               </div>
             </div>
           ))}
-          <Button variant="secondary" onClick={addExpense}>
-            + Adicionar Despesa
-          </Button>
         </div>
 
-        {/* Botões de ação */}
-        <div className="flex gap-4">
-          <Button onClick={handleCalculate} disabled={isCalculating || !formData.name}>
-            {isCalculating ? 'Calculando...' : 'Calcular Preço'}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Mão de obra</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Tempo de costura da peça e valor da hora (costureira ou facção).
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Input
+              label="Minutos de costura"
+              type="number"
+              step="1"
+              value={form.sewingMinutes}
+              onChange={setField('sewingMinutes')}
+              placeholder="45"
+            />
+            <Input
+              label="Valor da hora (R$)"
+              type="number"
+              step="0.01"
+              value={form.laborCostPerHour}
+              onChange={setField('laborCostPerHour')}
+              placeholder="25,00"
+            />
+            <Input
+              label="Acabamento / peça (R$)"
+              type="number"
+              step="0.01"
+              value={form.finishingCost}
+              onChange={setField('finishingCost')}
+              placeholder="Passadoria, revisão..."
+            />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Margens</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Custos da fábrica entram como % sobre o custo direto. Depois a margem da fábrica e a da loja.
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <Input
+              label="Custos da fábrica (%)"
+              type="number"
+              step="0.1"
+              value={form.overheadPercent}
+              onChange={setField('overheadPercent')}
+            />
+            <Input
+              label="Margem fábrica (%)"
+              type="number"
+              step="0.1"
+              value={form.profitMargin}
+              onChange={setField('profitMargin')}
+            />
+            <Input
+              label="Margem da loja (%)"
+              type="number"
+              step="0.1"
+              value={form.retailMargin}
+              onChange={setField('retailMargin')}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <Button type="button" onClick={handleCalculate} disabled={isCalculating || !form.name}>
+            {isCalculating ? 'Calculando...' : 'Calcular peça'}
           </Button>
           {calculation && onSave && (
-            <Button variant="success" onClick={handleSave}>
-              Salvar Produto
+            <Button type="button" variant="success" onClick={handleSave}>
+              Salvar ficha
             </Button>
           )}
         </div>
-      </Card>
+      </div>
 
-      {/* Resultado do Cálculo */}
       {calculation && (
-        <Card>
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Resultado da Precificação</h2>
-
-          {/* Resumo dos Custos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Matérias-Primas</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">R$ {calculation.costs.rawMaterials.toFixed(2)}</p>
+        <div className="surface p-6 space-y-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Ficha de custo</h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Tecido</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{money(calculation.costs.fabric ?? calculation.costs.rawMaterials)}</p>
             </div>
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Energia Elétrica</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">R$ {calculation.costs.energy.toFixed(2)}</p>
+            <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Aviamentos</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{money(calculation.costs.trims || 0)}</p>
             </div>
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Mão de Obra</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">R$ {calculation.costs.labor.toFixed(2)}</p>
+            <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Mão de obra</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{money(calculation.costs.labor)}</p>
             </div>
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Despesas Fixas</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">R$ {calculation.costs.fixedExpenses.toFixed(2)}</p>
+            <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Acabamento</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{money(calculation.costs.finishing ?? calculation.costs.variableExpenses)}</p>
             </div>
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Despesas Variáveis</p>
-              <p className="text-xl font-bold text-gray-900 dark:text-white">R$ {calculation.costs.variableExpenses.toFixed(2)}</p>
+            <div className="rounded-xl bg-gray-50 dark:bg-zinc-800 p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Custos da fábrica</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{money(calculation.costs.overhead ?? calculation.costs.fixedExpenses)}</p>
             </div>
-            <div className="p-4 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <p className="text-sm text-blue-600 dark:text-blue-400 font-semibold">Custo Total</p>
-              <p className="text-xl font-bold text-blue-700 dark:text-blue-300">R$ {calculation.costs.total.toFixed(2)}</p>
+            <div className="rounded-xl bg-gray-900 dark:bg-white p-4">
+              <p className="text-xs uppercase tracking-wider text-gray-300 dark:text-zinc-500">Custo da peça</p>
+              <p className="text-lg font-semibold text-white dark:text-zinc-950">{money(calculation.costs.total)}</p>
             </div>
           </div>
 
-          {/* Preços */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="p-6 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg border-2 border-yellow-400 dark:border-yellow-700">
-              <p className="text-sm text-yellow-700 dark:text-yellow-400 font-semibold">Preço Mínimo (Sem Lucro)</p>
-              <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-200">R$ {calculation.prices.minimumSalePrice.toFixed(2)}</p>
+          <div className="grid md:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-gray-200 dark:border-zinc-700 p-5">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Custo (piso)</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                {money(calculation.prices.minimumSalePrice)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Abaixo disso a peça sai no prejuízo.</p>
             </div>
-            <div className="p-6 bg-green-100 dark:bg-green-900/30 rounded-lg border-2 border-green-400 dark:border-green-700">
-              <p className="text-sm text-green-700 dark:text-green-400 font-semibold">Preço Ideal (Com Lucro)</p>
-              <p className="text-2xl font-bold text-green-900 dark:text-green-200">R$ {calculation.prices.idealSalePrice.toFixed(2)}</p>
+            <div className="rounded-2xl border border-gray-900 dark:border-white p-5">
+              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Preço fábrica</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                {money(calculation.prices.factoryPrice ?? calculation.prices.idealSalePrice)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Lucro {money(calculation.prices.profitValue)}
+              </p>
             </div>
-            <div className="p-6 bg-purple-100 dark:bg-purple-900/30 rounded-lg border-2 border-purple-400 dark:border-purple-700">
-              <p className="text-sm text-purple-700 dark:text-purple-400 font-semibold">Lucro por Unidade</p>
-              <p className="text-2xl font-bold text-purple-900 dark:text-purple-200">R$ {calculation.prices.profitValue.toFixed(2)}</p>
+            <div className="rounded-2xl bg-gray-900 dark:bg-white p-5">
+              <p className="text-xs uppercase tracking-wider text-gray-300 dark:text-zinc-500">Preço sugerido na loja</p>
+              <p className="text-2xl font-semibold text-white dark:text-zinc-950 mt-1">
+                {money(calculation.prices.retailPrice ?? calculation.prices.idealSalePrice)}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Margem da loja em cima do preço fábrica.</p>
             </div>
           </div>
 
-          {/* Composição Percentual */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Composição do Preço</h3>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Matérias-Primas</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-blue-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.rawMaterialsPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.rawMaterialsPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Energia</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-yellow-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.energyPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.energyPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Mão de Obra</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-green-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.laborPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.laborPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Despesas Fixas</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-red-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.fixedExpensesPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.fixedExpensesPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Despesas Variáveis</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-orange-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.variableExpensesPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.variableExpensesPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-900 dark:text-gray-200">Lucro</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-48 bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                    <div
-                      className="bg-purple-500 h-4 rounded-full"
-                      style={{ width: `${calculation.breakdown.percentages.profitPercent}%` }}
-                    ></div>
-                  </div>
-                  <span className="font-semibold text-gray-900 dark:text-white">{calculation.breakdown.percentages.profitPercent.toFixed(1)}%</span>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Composição do preço fábrica
+            </h3>
+            <Bar label="Tecido" percent={calculation.breakdown.percentages.fabricPercent ?? calculation.breakdown.percentages.rawMaterialsPercent} color="bg-gray-800 dark:bg-zinc-200" />
+            <Bar label="Aviamentos" percent={calculation.breakdown.percentages.trimsPercent || 0} color="bg-gray-500" />
+            <Bar label="Mão de obra" percent={calculation.breakdown.percentages.laborPercent} color="bg-gray-400" />
+            <Bar label="Acabamento" percent={calculation.breakdown.percentages.finishingPercent ?? calculation.breakdown.percentages.variableExpensesPercent} color="bg-gray-300" />
+            <Bar label="Fábrica" percent={calculation.breakdown.percentages.overheadPercent ?? calculation.breakdown.percentages.fixedExpensesPercent} color="bg-zinc-400" />
+            <Bar label="Lucro" percent={calculation.breakdown.percentages.profitPercent} color="bg-emerald-500" />
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );
