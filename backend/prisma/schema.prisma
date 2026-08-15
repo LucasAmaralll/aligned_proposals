@@ -36,6 +36,11 @@ model Company {
   returns    SaleReturn[]
   exchanges  Exchange[]
   expenses   Expense[]
+  apiKeys    CompanyApiKey[]
+  shipments  Shipment[]
+  cashRegisters CashRegister[]
+  cashSessions  CashSession[]
+  cashMovements CashMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -69,6 +74,10 @@ model Unit {
   returns   SaleReturn[]
   exchanges Exchange[]
   expenses  Expense[]
+  shipments Shipment[]
+  cashRegisters CashRegister[]
+  cashSessions  CashSession[]
+  cashMovements CashMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -139,9 +148,15 @@ model User {
   products      Product[]
   movements     StockMovement[]
   sales         Sale[]
+  cancelledSales Sale[] @relation("SaleCancelledBy")
   returns       SaleReturn[]
   exchanges     Exchange[]
   expenses      Expense[]
+  apiKeys       CompanyApiKey[]
+  shipments     Shipment[] @relation("ShipmentCreatedBy")
+  openedCashSessions CashSession[] @relation("CashSessionOpenedBy")
+  closedCashSessions CashSession[] @relation("CashSessionClosedBy")
+  cashMovements CashMovement[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -189,6 +204,7 @@ model Client {
 
   quotes      Quote[]
   sales       Sale[]
+  shipments   Shipment[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -231,6 +247,8 @@ model Quote {
 
   clientId        String
   client          Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  sales           Sale[]
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -396,7 +414,8 @@ model Sale {
   id        String   @id @default(uuid())
   number    Int
   status    String   @default("completed")
-  origin    String   @default("store")
+  origin    String   @default("store") // store | ecommerce | quote
+  channel   String   @default("retail") // retail | wholesale
   subtotal  Decimal  @db.Decimal(10, 2)
   discount  Decimal  @db.Decimal(10, 2) @default(0)
   total     Decimal  @db.Decimal(10, 2)
@@ -414,10 +433,21 @@ model Sale {
   sellerId  String
   seller    User     @relation(fields: [sellerId], references: [id], onDelete: Restrict)
 
+  cancelledAt   DateTime?
+  cancelReason  String?
+  cancelledById String?
+  cancelledBy   User?     @relation("SaleCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  quoteId   String?
+  quote     Quote?   @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
   items     SaleItem[]
   payments  SalePayment[]
   returns   SaleReturn[]
   exchanges Exchange[]
+  shipments Shipment[]
+  cashSessionId String?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -426,7 +456,75 @@ model Sale {
   @@index([companyId, createdAt])
   @@index([unitId])
   @@index([clientId])
+  @@index([channel])
+  @@index([cashSessionId])
   @@map("sales")
+}
+
+model CompanyApiKey {
+  id          String    @id @default(uuid())
+  name        String
+  keyHash     String    @unique
+  prefix      String
+  lastFour    String
+  active      Boolean   @default(true)
+  lastUsedAt  DateTime?
+
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([companyId])
+  @@map("company_api_keys")
+}
+
+model Shipment {
+  id             String    @id @default(uuid())
+  number         Int
+  status         String    @default("pending") // pending | shipped | cancelled
+  origin         String    @default("manual") // sale | ecommerce | manual
+  recipientName  String
+  phone          String?
+  document       String?
+  address        String?
+  complement     String?
+  neighborhood   String?
+  city           String?
+  state          String?
+  zipCode        String?
+  itemsNote      String?
+  carrier        String    @default("correios") // correios | motoboy | other
+  trackingCode   String?
+  notes          String?
+  shippedAt      DateTime?
+
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  unitId         String?
+  unit           Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  saleId         String?
+  sale           Sale?     @relation(fields: [saleId], references: [id], onDelete: SetNull)
+
+  clientId       String?
+  client         Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  createdById    String
+  createdBy      User      @relation("ShipmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([saleId])
+  @@index([unitId])
+  @@map("shipments")
 }
 
 model SaleItem {
@@ -486,12 +584,16 @@ model SaleReturn {
   createdById  String
   createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
+  cashSessionId String?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: SetNull)
+
   items        SaleReturnItem[]
 
   createdAt    DateTime @default(now())
 
   @@unique([companyId, number])
   @@index([saleId])
+  @@index([cashSessionId])
   @@map("returns")
 }
 
@@ -537,12 +639,16 @@ model Exchange {
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
+  cashSessionId String?
+  cashSession   CashSession? @relation(fields: [cashSessionId], references: [id], onDelete: SetNull)
+
   items       ExchangeItem[]
 
   createdAt   DateTime @default(now())
 
   @@unique([companyId, number])
   @@index([saleId])
+  @@index([cashSessionId])
   @@map("exchanges")
 }
 
@@ -595,4 +701,95 @@ model Expense {
   @@index([companyId, dueDate])
   @@index([companyId, status])
   @@map("expenses")
+}
+
+model CashRegister {
+  id        String   @id @default(uuid())
+  name      String
+  active    Boolean  @default(true)
+
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  sessions  CashSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([unitId, name])
+  @@index([companyId])
+  @@index([unitId])
+  @@map("cash_registers")
+}
+
+model CashSession {
+  id             String    @id @default(uuid())
+  status         String    @default("open") // open | closed
+  openingAmount  Decimal   @db.Decimal(10, 2)
+  countedCash    Decimal?  @db.Decimal(10, 2)
+  expectedCash   Decimal?  @db.Decimal(10, 2)
+  difference     Decimal?  @db.Decimal(10, 2)
+  totals         Json?
+
+  openedAt       DateTime  @default(now())
+  closedAt       DateTime?
+
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  unitId         String
+  unit           Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  registerId     String
+  register       CashRegister @relation(fields: [registerId], references: [id], onDelete: Restrict)
+
+  openedById     String
+  openedBy       User      @relation("CashSessionOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+
+  closedById     String?
+  closedBy       User?     @relation("CashSessionClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+
+  movements      CashMovement[]
+  sales          Sale[]
+  returns        SaleReturn[]
+  exchanges      Exchange[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([unitId, status])
+  @@index([registerId, status])
+  @@map("cash_sessions")
+}
+
+model CashMovement {
+  id             String   @id @default(uuid())
+  type           String   // open | supply | bleed | refund | close
+  amount         Decimal  @db.Decimal(10, 2)
+  reason         String?
+  referenceType  String?  // sale | return | exchange
+  referenceId    String?
+
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  unitId         String
+  unit           Unit     @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  sessionId      String
+  session        CashSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt      DateTime @default(now())
+
+  @@index([sessionId, type])
+  @@index([companyId])
+  @@index([referenceType, referenceId])
+  @@map("cash_movements")
 }
