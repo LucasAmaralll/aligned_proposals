@@ -118,6 +118,76 @@ class AuthController {
     }
   }
 
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+      const generic = { message: 'Se o e-mail existir, enviaremos o link de redefinição' };
+
+      if (!email) {
+        return res.json(generic);
+      }
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user || user.active === false) {
+        return res.json(generic);
+      }
+
+      const token = jwt.sign(
+        { id: user.id, typ: 'password_reset' },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+
+      const emailService = require('../services/email.service');
+      await emailService.sendPasswordReset(user.email, resetUrl);
+
+      return res.json(generic);
+    } catch (error) {
+      console.error('Erro ao solicitar redefinição de senha:', error);
+      return res.json({ message: 'Se o e-mail existir, enviaremos o link de redefinição' });
+    }
+  }
+
+  async resetPassword(req, res) {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token e senha são obrigatórios' });
+      }
+      if (String(password).length < 8) {
+        return res.status(400).json({ error: 'A senha precisa ter pelo menos 8 caracteres' });
+      }
+
+      let payload;
+      try {
+        payload = jwt.verify(token, process.env.JWT_SECRET);
+      } catch (error) {
+        return res.status(400).json({ error: 'Link inválido ou expirado' });
+      }
+
+      if (payload.typ !== 'password_reset' || !payload.id) {
+        return res.status(400).json({ error: 'Link inválido ou expirado' });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: payload.id } });
+      if (!user || user.active === false) {
+        return res.status(400).json({ error: 'Link inválido ou expirado' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      return res.json({ message: 'Senha atualizada' });
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      return res.status(500).json({ error: 'Erro ao redefinir senha' });
+    }
+  }
+
   async me(req, res) {
     try {
       const user = await prisma.user.findUnique({

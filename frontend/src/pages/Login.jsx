@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import AuthShell from '../components/AuthShell';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
-import Logo from '../components/Logo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -32,61 +31,52 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <Logo variant="full" className="h-28 w-auto mx-auto" />
-          <p className="text-gray-600 dark:text-gray-400 mt-4">Faça login para continuar</p>
+    <AuthShell subtitle="Acesse a gestão da sua empresa">
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Email"
+          type="email"
+          icon={EnvelopeIcon}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="seu@email.com"
+          required
+        />
+
+        <Input
+          label="Senha"
+          type="password"
+          icon={LockClosedIcon}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          required
+        />
+
+        <div className="flex justify-end">
+          <Link
+            to="/forgot-password"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+          >
+            Esqueci a senha
+          </Link>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? 'Entrando...' : 'Entrar'}
+        </Button>
+      </form>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Email"
-              type="email"
-              icon={EnvelopeIcon}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              required
-            />
-
-            <Input
-              label="Senha"
-              type="password"
-              icon={LockClosedIcon}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Não tem uma conta?{' '}
-              <Link to="/register" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium">
-                Cadastre-se
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+        Sua empresa ainda não tem acesso? Fale com a Aligned para cadastrarmos vocês.
+      </p>
+    </AuthShell>
   );
 };
 

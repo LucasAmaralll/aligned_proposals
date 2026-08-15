@@ -52,26 +52,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (data) => {
-    try {
-      const response = await api.post('/auth/register', data);
-      const { user: userData, token } = response.data;
-
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', token);
-
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-      setUser(userData);
-
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Erro ao criar conta',
-      };
-    }
-  };
-
   const signOut = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -83,6 +63,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
+  const refreshUser = async () => {
+    const response = await api.get('/auth/me');
+    updateUser(response.data);
+    return response.data;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -90,9 +76,9 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         signIn,
-        signUp,
         signOut,
         updateUser,
+        refreshUser,
       }}
     >
       {children}
