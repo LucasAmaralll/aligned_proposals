@@ -10,8 +10,10 @@ import {
   formatDate,
   formatDocument,
   formatPhone,
+  formatZipCode,
   getStatusColor,
   getStatusLabel,
+  onlyDigits,
 } from '../utils/helpers';
 
 const ClientDetail = () => {
@@ -83,15 +85,19 @@ const ClientDetail = () => {
 
           <div className="grid md:grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-gray-500 dark:text-gray-400">CPF/CNPJ</p>
+              <p className="text-gray-500 dark:text-gray-400">
+                {onlyDigits(client.document).length > 11 ? 'CNPJ' : 'CPF'}
+              </p>
               <p className="text-gray-900 dark:text-white">{formatDocument(client.document) || '—'}</p>
             </div>
-            <div>
-              <p className="text-gray-500 dark:text-gray-400">Nascimento</p>
-              <p className="text-gray-900 dark:text-white">
-                {client.birthDate ? formatDate(client.birthDate) : '—'}
-              </p>
-            </div>
+            {onlyDigits(client.document).length <= 11 && (
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Nascimento</p>
+                <p className="text-gray-900 dark:text-white">
+                  {client.birthDate ? formatDate(client.birthDate) : '—'}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-gray-500 dark:text-gray-400">Telefone</p>
               <p className="text-gray-900 dark:text-white">
@@ -105,7 +111,7 @@ const ClientDetail = () => {
             <div className="md:col-span-2">
               <p className="text-gray-500 dark:text-gray-400">Endereço</p>
               <p className="text-gray-900 dark:text-white">
-                {[client.address, client.city, client.state, client.zipCode]
+                {[client.address, client.city, client.state, formatZipCode(client.zipCode)]
                   .filter(Boolean)
                   .join(' · ') || '—'}
               </p>

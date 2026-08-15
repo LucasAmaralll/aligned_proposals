@@ -301,7 +301,7 @@ const Pos = () => {
                 }
                 onClear={() => setClient(null)}
                 placeholder="Buscar cliente ou deixar avulso"
-                hint="Digite nome, número, CPF ou telefone"
+                hint="Digite nome, número, CPF, CNPJ ou telefone"
                 emptyText="Nenhum cliente encontrado"
                 renderOption={(item) => (
                   <p className="text-sm text-gray-900 dark:text-white">

@@ -12,7 +12,7 @@ import Layout from '../components/Layout';
 import Loading from '../components/Loading';
 import Modal from '../components/Modal';
 import api from '../services/api';
-import { formatClientNumber, formatPhone, isBirthdayThisMonth } from '../utils/helpers';
+import { formatClientNumber, formatDocument, formatPhone, isBirthdayThisMonth } from '../utils/helpers';
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
@@ -69,7 +69,7 @@ const Clients = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Clientes</h1>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Número sequencial, CPF e histórico por empresa
+                  Pessoa física ou jurídica, com CPF ou CNPJ
                 </p>
               </div>
               
@@ -88,7 +88,7 @@ const Clients = () => {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar por número, nome, CPF ou telefone..."
+                  placeholder="Buscar por número, nome, CPF, CNPJ ou telefone..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -174,7 +174,7 @@ const Clients = () => {
                                 </Link>
                                 {client.document && (
                                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    {client.document}
+                                    {formatDocument(client.document)}
                                   </div>
                                 )}
                                 {isBirthdayThisMonth(client.birthDate) && (

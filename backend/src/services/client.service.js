@@ -25,6 +25,7 @@ function buildClientSearch(search) {
   const term = String(search).trim();
   if (!term) return {};
 
+  const digits = term.replace(/\D/g, '');
   const or = [
     { name: { contains: term, mode: 'insensitive' } },
     { email: { contains: term, mode: 'insensitive' } },
@@ -32,9 +33,13 @@ function buildClientSearch(search) {
     { document: { contains: term, mode: 'insensitive' } },
   ];
 
-  const asNumber = Number(term.replace(/\D/g, ''));
-  if (term.replace(/\D/g, '') && Number.isInteger(asNumber)) {
-    or.push({ number: asNumber });
+  if (digits) {
+    or.push({ phone: { contains: digits, mode: 'insensitive' } });
+    or.push({ document: { contains: digits, mode: 'insensitive' } });
+    const asNumber = Number(digits);
+    if (Number.isInteger(asNumber)) {
+      or.push({ number: asNumber });
+    }
   }
 
   return { OR: or };
