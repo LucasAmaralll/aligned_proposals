@@ -17,6 +17,7 @@ const stockRoutes = require('./routes/stock.routes');
 const saleRoutes = require('./routes/sale.routes');
 const reportRoutes = require('./routes/report.routes');
 const expenseRoutes = require('./routes/expense.routes');
+const teamRoutes = require('./routes/team.routes');
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/team', teamRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {

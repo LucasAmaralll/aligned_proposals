@@ -12,6 +12,15 @@ model Company {
   name      String
   slug      String   @unique
   document  String?
+  phone     String?
+  email     String?
+  zip       String?
+  street    String?
+  number    String?
+  complement String?
+  neighborhood String?
+  city      String?
+  state     String?
   active    Boolean  @default(true)
 
   users      User[]
@@ -38,6 +47,16 @@ model Unit {
   id        String   @id @default(uuid())
   name      String
   type      String // store | factory
+  document  String?
+  phone     String?
+  email     String?
+  zip       String?
+  street    String?
+  number    String?
+  complement String?
+  neighborhood String?
+  city      String?
+  state     String?
   active    Boolean  @default(true)
 
   companyId String
@@ -93,6 +112,8 @@ model User {
   logo          String?
   website       String?
   active        Boolean   @default(true)
+  commissionRate Decimal? @db.Decimal(5, 2)
+  salary         Decimal? @db.Decimal(10, 2)
 
   companyId     String
   company       Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)

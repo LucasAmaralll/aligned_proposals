@@ -5,11 +5,12 @@ import { ThemeProvider } from './context/ThemeContext';
 import { SidebarProvider } from './context/SidebarContext';
 import { CompanyProvider } from './context/CompanyContext';
 import PrivateRoute from './components/PrivateRoute';
+import GuestRoute from './components/GuestRoute';
 
 // Public pages
-import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import PublicQuoteView from './pages/PublicQuoteView';
 
 // Private pages
@@ -33,6 +34,8 @@ import SaleDetail from './pages/SaleDetail';
 import SaleReturn from './pages/SaleReturn';
 import SaleExchange from './pages/SaleExchange';
 import Expenses from './pages/Expenses';
+import Team from './pages/Team';
+import RequirePermission from './components/RequirePermission';
 
 function App() {
   return (
@@ -43,9 +46,39 @@ function App() {
           <Router>
             <Routes>
               {/* Public routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              <Route
+                path="/"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <GuestRoute>
+                    <ForgotPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <GuestRoute>
+                    <ResetPassword />
+                  </GuestRoute>
+                }
+              />
+              <Route path="/register" element={<Navigate to="/" replace />} />
               <Route path="/view/:token" element={<PublicQuoteView />} />
 
             {/* Private routes - Dashboard */}
@@ -173,7 +206,9 @@ function App() {
               path="/products"
               element={
                 <PrivateRoute>
-                  <Products />
+                  <RequirePermission permission="products.manage">
+                    <Products />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -181,7 +216,9 @@ function App() {
               path="/products/new"
               element={
                 <PrivateRoute>
-                  <ProductForm />
+                  <RequirePermission permission="products.manage">
+                    <ProductForm />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -189,7 +226,9 @@ function App() {
               path="/products/:id"
               element={
                 <PrivateRoute>
-                  <ProductDetail />
+                  <RequirePermission permission="products.manage">
+                    <ProductDetail />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -199,7 +238,9 @@ function App() {
               path="/stock"
               element={
                 <PrivateRoute>
-                  <Stock />
+                  <RequirePermission permission="stock.manage">
+                    <Stock />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -207,7 +248,9 @@ function App() {
               path="/stock/movements"
               element={
                 <PrivateRoute>
-                  <StockMovements />
+                  <RequirePermission permission="stock.manage">
+                    <StockMovements />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -217,7 +260,19 @@ function App() {
               path="/expenses"
               element={
                 <PrivateRoute>
-                  <Expenses />
+                  <RequirePermission permission="expenses.manage">
+                    <Expenses />
+                  </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/team"
+              element={
+                <PrivateRoute>
+                  <RequirePermission permission="users.manage">
+                    <Team />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -227,7 +282,9 @@ function App() {
               path="/pricing"
               element={
                 <PrivateRoute>
-                  <ProductPricing />
+                  <RequirePermission permission="products.manage">
+                    <ProductPricing />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />
@@ -235,7 +292,9 @@ function App() {
               path="/pricing/:id"
               element={
                 <PrivateRoute>
-                  <ProductPricing />
+                  <RequirePermission permission="products.manage">
+                    <ProductPricing />
+                  </RequirePermission>
                 </PrivateRoute>
               }
             />

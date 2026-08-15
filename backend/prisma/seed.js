@@ -81,7 +81,7 @@ async function upsertCompany({ name, slug, document, units }) {
   });
 }
 
-async function upsertDemoUser({ email, name, password, company, role, unitNames }) {
+async function upsertDemoUser({ email, name, password, company, role, unitNames, commissionRate, salary }) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     console.log(`Usuário ${email} já existe.`);
@@ -100,6 +100,8 @@ async function upsertDemoUser({ email, name, password, company, role, unitNames 
       companyName: company.name,
       companyId: company.id,
       roleId: role.id,
+      commissionRate: commissionRate ?? null,
+      salary: salary ?? null,
       planId: freePlan?.id,
       subscriptionStatus: 'active',
       units: {
@@ -213,8 +215,20 @@ async function main() {
     unitNames: ['Fábrica'],
   });
 
+  await upsertDemoUser({
+    email: 'nina.v@example.com',
+    name: 'Ana Souza',
+    password: 'vendedora123',
+    company: reveza,
+    role: roles.seller,
+    unitNames: ['Loja 1'],
+    commissionRate: 8,
+    salary: 2500,
+  });
+
   console.log('\nSeed concluído.');
-  console.log('Login Reveza: samuel.w@example.com / reveza123');
+  console.log('Login Reveza admin: samuel.w@example.com / reveza123');
+  console.log('Login Reveza vendedora: nina.v@example.com / vendedora123');
   console.log('Login Rezza:  uma.s@example.org / rezza123');
 }
 

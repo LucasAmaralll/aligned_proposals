@@ -59,9 +59,9 @@ async function remainingBySaleItem(saleId, db) {
   );
 }
 
-async function loadSale(companyId, saleId, db) {
+async function loadSale(companyId, saleId, db, sellerId) {
   const sale = await db.sale.findFirst({
-    where: { id: saleId, companyId },
+    where: { id: saleId, companyId, ...(sellerId && { sellerId }) },
     include: { items: true, unit: true },
   });
   if (!sale) {
@@ -78,13 +78,13 @@ function assertMethod(method, amount) {
   return method;
 }
 
-async function createReturn({ companyId, userId, saleId, items = [], reason, method }) {
+async function createReturn({ companyId, userId, saleId, items = [], reason, method, sellerId }) {
   if (!items.length) {
     throw new AftersaleError('Selecione pelo menos um item para devolver');
   }
 
   return prisma.$transaction(async (tx) => {
-    const sale = await loadSale(companyId, saleId, tx);
+    const sale = await loadSale(companyId, saleId, tx, sellerId);
     const remaining = await remainingBySaleItem(sale.id, tx);
     const saleItems = new Map(sale.items.map((item) => [item.id, item]));
 
@@ -175,6 +175,7 @@ async function createExchange({
   newItems = [],
   reason,
   method,
+  sellerId,
 }) {
   if (!returnItems.length) {
     throw new AftersaleError('Selecione o que volta para a loja');
@@ -184,7 +185,7 @@ async function createExchange({
   }
 
   return prisma.$transaction(async (tx) => {
-    const sale = await loadSale(companyId, saleId, tx);
+    const sale = await loadSale(companyId, saleId, tx, sellerId);
     const remaining = await remainingBySaleItem(sale.id, tx);
     const saleItems = new Map(sale.items.map((item) => [item.id, item]));
 

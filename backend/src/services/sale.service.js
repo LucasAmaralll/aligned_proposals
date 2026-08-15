@@ -220,10 +220,11 @@ async function createSale({
   });
 }
 
-async function listSales({ companyId, unitId, search, page = 1, limit = 20 }) {
+async function listSales({ companyId, unitId, search, page = 1, limit = 20, sellerId }) {
   const where = {
     companyId,
     ...(unitId && { unitId }),
+    ...(sellerId && { sellerId }),
     ...(search && {
       OR: [
         { client: { name: { contains: search, mode: 'insensitive' } } },
@@ -262,9 +263,9 @@ async function listSales({ companyId, unitId, search, page = 1, limit = 20 }) {
   };
 }
 
-async function getSaleById({ companyId, id }) {
+async function getSaleById({ companyId, id, sellerId }) {
   const sale = await prisma.sale.findFirst({
-    where: { id, companyId },
+    where: { id, companyId, ...(sellerId && { sellerId }) },
     include: saleInclude,
   });
 

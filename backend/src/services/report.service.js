@@ -38,13 +38,14 @@ function dayKey(date) {
   return new Date(date).toLocaleDateString('en-CA');
 }
 
-async function getSalesDashboard({ companyId, unitId, period, from, to }) {
+async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId, commissionRate }) {
   const range = resolvePeriod(period, from, to);
   const dateFilter = { gte: range.from, lte: range.to };
   const scope = {
     companyId,
     createdAt: dateFilter,
     ...(unitId && unitId !== 'all' && { unitId }),
+    ...(sellerId && { sellerId }),
   };
 
   const [sales, returns, exchanges, clientsCount, pendingQuotes] = await Promise.all([
@@ -154,6 +155,8 @@ async function getSalesDashboard({ companyId, unitId, period, from, to }) {
       exchangesCount: exchanges.length,
       clientsCount,
       pendingQuotes,
+      commissionRate: commissionRate == null ? null : parseFloat(commissionRate),
+      commission: commissionRate == null ? null : money(gross * (parseFloat(commissionRate) / 100)),
     },
     byDay: days,
     byUnit: Object.values(byUnitMap).sort((a, b) => b.total - a.total),
