@@ -21,6 +21,11 @@ import QuoteDetail from './pages/QuoteDetail';
 import QuoteForm from './pages/QuoteForm';
 import Profile from './pages/Profile';
 import ProductPricing from './pages/ProductPricing';
+import Products from './pages/Products';
+import ProductForm from './pages/ProductForm';
+import ProductDetail from './pages/ProductDetail';
+import Stock from './pages/Stock';
+import StockMovements from './pages/StockMovements';
 
 function App() {
   return (
@@ -106,6 +111,50 @@ function App() {
               }
             />
             
+            {/* Private routes - Catalog */}
+            <Route
+              path="/products"
+              element={
+                <PrivateRoute>
+                  <Products />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/products/new"
+              element={
+                <PrivateRoute>
+                  <ProductForm />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/products/:id"
+              element={
+                <PrivateRoute>
+                  <ProductDetail />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Private routes - Stock */}
+            <Route
+              path="/stock"
+              element={
+                <PrivateRoute>
+                  <Stock />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/stock/movements"
+              element={
+                <PrivateRoute>
+                  <StockMovements />
+                </PrivateRoute>
+              }
+            />
+
             {/* Private routes - Pricing */}
             <Route
               path="/pricing"

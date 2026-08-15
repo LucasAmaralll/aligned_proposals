@@ -15,6 +15,8 @@ import {
   SunIcon,
   MoonIcon,
   CalculatorIcon,
+  CubeIcon,
+  ArchiveBoxIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Bars3Icon
@@ -38,6 +40,8 @@ const Sidebar = () => {
     { name: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
     { name: 'Clientes', icon: UserGroupIcon, path: '/clients' },
     { name: 'Orçamentos', icon: DocumentTextIcon, path: '/quotes' },
+    { name: 'Produtos', icon: CubeIcon, path: '/products' },
+    { name: 'Estoque', icon: ArchiveBoxIcon, path: '/stock' },
     { name: 'Precificação', icon: CalculatorIcon, path: '/pricing' },
     { name: 'Perfil', icon: UserCircleIcon, path: '/profile' },
   ];
