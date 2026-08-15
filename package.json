@@ -1,7 +1,7 @@
 {
-  "name": "aligned-proposals",
+  "name": "aligned",
   "version": "1.0.0",
-  "description": "Sistema SaaS de orçamentos e propostas comerciais",
+  "description": "Aligned — gestão para lojas e fabricação de moda",
   "scripts": {
     "setup": "cd backend && npm install && cd ../frontend && npm install",
     "dev:backend": "cd backend && npm run dev",

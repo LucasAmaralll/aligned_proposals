@@ -1,7 +1,7 @@
 {
-  "name": "aligned-proposals-backend",
+  "name": "aligned-backend",
   "version": "1.0.0",
-  "description": "Backend da plataforma Aligned Proposals - Sistema de orçamentos",
+  "description": "Backend do Aligned",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",

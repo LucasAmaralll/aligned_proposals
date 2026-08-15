@@ -54,7 +54,7 @@ class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <h1>${quote.user.company || quote.user.name}</h1>
+              <h1>${quote.user.company?.name || quote.user.companyName || quote.user.name}</h1>
               <p>Orçamento Nº ${quote.id.substring(0, 8).toUpperCase()}</p>
             </div>
             
@@ -99,9 +99,9 @@ class EmailService {
             </div>
             
             <div class="footer">
-              <p>Este email foi enviado por ${quote.user.company || quote.user.name}</p>
+              <p>Este email foi enviado por ${quote.user.company?.name || quote.user.companyName || quote.user.name}</p>
               <p>${quote.user.email} ${quote.user.phone ? '| ' + quote.user.phone : ''}</p>
-              <p style="margin-top: 10px;">Gerado por Aligned Proposals</p>
+              <p style="margin-top: 10px;">Gerado por Aligned</p>
             </div>
           </div>
         </body>

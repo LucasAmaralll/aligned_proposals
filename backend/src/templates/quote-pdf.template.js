@@ -25,10 +25,10 @@ function generateQuotePDFTemplate(quote) {
   };
   
   // Informações do cliente e empresa
-  const companyName = escapeHtml(quote.user?.company || quote.user?.name || 'Empresa');
+  const companyName = escapeHtml(quote.user?.company?.name || quote.user?.companyName || quote.user?.name || 'Empresa');
   const companyEmail = escapeHtml(quote.user?.email || '');
   const companyPhone = escapeHtml(quote.user?.phone || '');
-  const companyWebsite = escapeHtml(quote.user?.website || 'www.alignedproposals.com');
+  const companyWebsite = escapeHtml(quote.user?.website || '');
   
   // URL da logo do usuário (se houver)
   const logoUrl = quote.user?.logo 

@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { LockClosedIcon } from '@heroicons/react/24/solid';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import Layout from '../components/Layout';
-import Card from '../components/Card';
 import Loading from '../components/Loading';
-import Button from '../components/Button';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatCurrency } from '../utils/helpers';
 import {
   UserGroupIcon,
   DocumentTextIcon,
@@ -20,7 +15,6 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('all');
@@ -61,18 +55,6 @@ const Dashboard = () => {
     }
   };
 
-  const quotesRemaining = () => {
-    if (user?.plan?.quotesLimit === -1) {
-      return 'Ilimitado';
-    }
-    const remaining = user.plan.quotesLimit - user.quotesThisMonth;
-    return remaining > 0 ? remaining : 0;
-  };
-
-  const hasAccessToDashboard = () => {
-    return user?.plan?.name !== 'Gratuito';
-  };
-
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
@@ -91,50 +73,6 @@ const Dashboard = () => {
     return <Loading fullScreen />;
   }
 
-  // Se não tem acesso ao dashboard, mostra tela de bloqueio
-  if (!hasAccessToDashboard()) {
-    return (
-      <Layout title="Dashboard">
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-          <div className="bg-yellow-100 dark:bg-yellow-900/30 rounded-full p-6 mb-6">
-            <LockClosedIcon className="w-16 h-16 text-yellow-600 dark:text-yellow-500" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            Dashboard Bloqueado
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-            O Dashboard está disponível apenas nos planos Básico e Pro.
-          </p>
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-8 max-w-md">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
-              Com o Dashboard você terá:
-            </h3>
-            <ul className="text-left space-y-2 text-gray-700 dark:text-gray-300">
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Estatísticas detalhadas de clientes e orçamentos</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Gráficos e análises de desempenho</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-500 mr-2">✓</span>
-                <span>Acompanhamento de atividades recentes</span>
-              </li>
-            </ul>
-          </div>
-          <Button
-            onClick={() => navigate('/plans')}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            Ver Planos e Fazer Upgrade
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout title="Dashboard">
       {/* Welcome banner */}
@@ -145,28 +83,6 @@ const Dashboard = () => {
         <p className="text-sm sm:text-base text-blue-100">
           Bem-vindo ao seu painel de controle. Aqui você pode gerenciar seus orçamentos e clientes.
         </p>
-      </div>
-
-          {/* Plan info */}
-          <div className="bg-white dark:bg-gray-800 border-l-4 border-blue-600 dark:border-blue-400 rounded-lg p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-                  Plano {user?.plan?.name}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Orçamentos restantes este mês: <span className="font-semibold">{quotesRemaining()}</span>
-                </p>
-              </div>
-              {user?.plan?.name === 'Gratuito' && (
-                <a
-                  href="/plans"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Fazer Upgrade
-                </a>
-              )}
-            </div>
           </div>
 
           {/* Cliente Filter */}

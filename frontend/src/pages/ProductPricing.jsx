@@ -7,12 +7,10 @@ import PricingCalculator from '../components/PricingCalculator';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
-import { useAuth } from '../context/AuthContext';
 
 const ProductPricing = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -120,9 +118,7 @@ const ProductPricing = () => {
     navigate('/pricing');
   };
 
-  const hasAccessToPricing = () => {
-    return user?.plan?.name !== 'Gratuito';
-  };
+  const hasAccessToPricing = () => true;
 
   if (!hasAccessToPricing()) {
     return (

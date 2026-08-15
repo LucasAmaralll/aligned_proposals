@@ -37,7 +37,7 @@ const Login = () => {
           <h1 className="text-4xl font-bold text-gray-800 dark:text-white mb-2">
             <span className="bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">Aligned</span>
           </h1>
-          <p className="text-sm italic text-gray-600 dark:text-gray-400" style={{ fontFamily: "'Georgia', serif" }}>Proposals</p>
+              <p className="text-sm italic text-gray-600 dark:text-gray-400 mt-1">Gestão</p>
           <p className="text-gray-600 dark:text-gray-400 mt-4">Faça login para continuar</p>
         </div>
 

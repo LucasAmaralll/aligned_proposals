@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   CheckIcon,
-  XMarkIcon,
   DocumentTextIcon, 
   ChatBubbleLeftRightIcon,
   EnvelopeIcon,
@@ -13,29 +12,9 @@ import {
   MoonIcon
 } from '@heroicons/react/24/outline';
 import { useTheme } from '../context/ThemeContext';
-import api from '../services/api';
 
 const LandingPage = () => {
   const { darkMode, toggleDarkMode } = useTheme();
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadPlans();
-  }, []);
-
-  const loadPlans = async () => {
-    try {
-      const response = await api.get('/plans');
-      // Garantir que plans seja sempre um array
-      setPlans(Array.isArray(response.data) ? response.data : []);
-    } catch (error) {
-      console.error('Erro ao carregar planos:', error);
-      setPlans([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const features = [
     {
@@ -79,7 +58,7 @@ const LandingPage = () => {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                  Aligned Proposals
+                  Aligned
                 </h1>
               </div>
             </div>
@@ -139,12 +118,12 @@ const LandingPage = () => {
               <ArrowRightIcon className="h-5 w-5" />
             </Link>
             
-            <a
-              href="#plans"
+            <Link
+              to="/login"
               className="px-8 py-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:border-blue-600 dark:hover:border-blue-400 font-semibold text-lg transition-all"
             >
-              Ver Planos
-            </a>
+              Entrar
+            </Link>
           </div>
           
           <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
@@ -186,107 +165,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Plans Section */}
-      <section id="plans" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Escolha o Plano Ideal
-            </h3>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
-              Comece grátis e faça upgrade quando precisar
-            </p>
-          </div>
-          
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {plans.map((plan, index) => {
-                const isPro = plan.name === 'Pro';
-                const limit = plan.quotesLimit === -1 ? 'Ilimitados' : `${plan.quotesLimit}/mês`;
-                
-                return (
-                  <div
-                    key={plan.id}
-                    className={`relative rounded-2xl p-8 ${
-                      isPro
-                        ? 'bg-gradient-to-br from-blue-600 to-blue-500 text-white ring-4 ring-blue-600 ring-opacity-50 scale-105'
-                        : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    {isPro && (
-                      <div className="absolute top-0 right-6 transform -translate-y-1/2">
-                        <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full">
-                          POPULAR
-                        </span>
-                      </div>
-                    )}
-                    
-                    <h4 className={`text-2xl font-bold mb-2 ${isPro ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                      {plan.name}
-                    </h4>
-                    
-                    <div className="mb-6">
-                      <span className={`text-4xl font-bold ${isPro ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                        R$ {Number(plan.price).toFixed(2)}
-                      </span>
-                      <span className={`text-sm ${isPro ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                        /mês
-                      </span>
-                    </div>
-                    
-                    <div className="mb-6">
-                      <p className={`font-semibold mb-4 ${isPro ? 'text-blue-100' : 'text-gray-700 dark:text-gray-300'}`}>
-                        {limit} orçamentos
-                      </p>
-                      
-                      <ul className="space-y-3">
-                        {plan.features.map((feature, fIndex) => {
-                          const hasCheck = feature.startsWith('✅');
-                          const hasX = feature.startsWith('❌');
-                          const cleanFeature = feature.replace(/^(✅|❌)\s*/, '');
-                          
-                          return (
-                            <li key={fIndex} className="flex items-start gap-2">
-                              {hasCheck && (
-                                <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-blue-100' : 'text-green-600 dark:text-green-400'}`} />
-                              )}
-                              {hasX && (
-                                <XMarkIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-red-300' : 'text-red-500 dark:text-red-400'}`} />
-                              )}
-                              {!hasCheck && !hasX && (
-                                <CheckIcon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isPro ? 'text-blue-100' : 'text-green-600 dark:text-green-400'}`} />
-                              )}
-                              <span className={`text-sm ${isPro ? 'text-blue-50' : 'text-gray-600 dark:text-gray-300'}`}>
-                                {cleanFeature}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                    
-                    <Link
-                      to={`/register?plan=${plan.id}`}
-                      className={`block w-full py-3 px-6 rounded-lg font-semibold text-center transition-all ${
-                        isPro
-                          ? 'bg-white text-blue-600 hover:bg-gray-100'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {plan.price === 0 ? 'Começar Grátis' : 'Assinar Agora'}
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-blue-600 dark:bg-blue-700">
         <div className="max-w-4xl mx-auto text-center">
@@ -309,7 +187,7 @@ const LandingPage = () => {
       {/* Footer */}
       <footer className="py-8 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto text-center text-gray-600 dark:text-gray-400">
-          <p>&copy; 2024 Aligned Proposals. Todos os direitos reservados.</p>
+          <p>&copy; 2026 Aligned. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

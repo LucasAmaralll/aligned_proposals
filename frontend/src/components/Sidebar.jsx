@@ -7,7 +7,6 @@ import {
   HomeIcon,
   UserGroupIcon,
   DocumentTextIcon,
-  CreditCardIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   XMarkIcon,
@@ -36,7 +35,6 @@ const Sidebar = () => {
     { name: 'Clientes', icon: UserGroupIcon, path: '/clients' },
     { name: 'Orçamentos', icon: DocumentTextIcon, path: '/quotes' },
     { name: 'Precificação', icon: CalculatorIcon, path: '/pricing' },
-    { name: 'Planos', icon: CreditCardIcon, path: '/plans' },
     { name: 'Perfil', icon: UserCircleIcon, path: '/profile' },
   ];
 

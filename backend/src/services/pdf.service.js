@@ -104,7 +104,7 @@ class PDFService {
 
         const hasWatermark = quote.user.plan.hasWatermark;
         const items = JSON.parse(quote.items);
-        const companyName = quote.user.company || quote.user.name;
+        const companyName = quote.user.company?.name || quote.user.companyName || quote.user.name;
 
         // ==================== CABEÇALHO ====================
         // Fundo do cabeçalho
@@ -440,7 +440,7 @@ class PDFService {
              .fillColor('#6B7280')
              .font('Helvetica')
              .text(
-               `Gerado por Aligned Proposals | ${companyName} | Página ${i + 1} de ${pages.count}`,
+               `Gerado por Aligned | ${companyName} | Página ${i + 1} de ${pages.count}`,
                40,
                790,
                { align: 'center', width: 515 }

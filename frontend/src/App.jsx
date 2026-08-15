@@ -18,7 +18,6 @@ import ClientForm from './pages/ClientForm';
 import Quotes from './pages/Quotes';
 import QuoteDetail from './pages/QuoteDetail';
 import QuoteForm from './pages/QuoteForm';
-import Plans from './pages/Plans';
 import Profile from './pages/Profile';
 import ProductPricing from './pages/ProductPricing';
 
@@ -101,16 +100,6 @@ function App() {
               element={
                 <PrivateRoute>
                   <QuoteDetail />
-                </PrivateRoute>
-              }
-            />
-            
-            {/* Private routes - Plans */}
-            <Route
-              path="/plans"
-              element={
-                <PrivateRoute>
-                  <Plans />
                 </PrivateRoute>
               }
             />

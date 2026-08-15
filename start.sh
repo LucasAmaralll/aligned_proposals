@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Iniciando Aligned Proposals..."
+echo "Iniciando Aligned..."
 echo ""
 
 # Cores

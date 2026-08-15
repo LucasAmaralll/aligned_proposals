@@ -22,7 +22,7 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    company: user?.company || '',
+    company: user?.company?.name || user?.companyName || '',
     phone: user?.phone || '',
     website: user?.website || ''
   });

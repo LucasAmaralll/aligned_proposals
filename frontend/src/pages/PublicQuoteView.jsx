@@ -54,7 +54,7 @@ const PublicQuoteView = () => {
               {quote.user.logo && (
                 <img src={quote.user.logo} alt="Logo" className="h-16 mb-4" />
               )}
-              <h1 className="text-3xl font-bold text-gray-800">{quote.user.company || quote.user.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-800">{quote.user.company?.name || quote.user.companyName || quote.user.name}</h1>
               <p className="text-gray-600 mt-1">{quote.user.email}</p>
               {quote.user.phone && (
                 <p className="text-gray-600">{quote.user.phone}</p>
@@ -160,7 +160,7 @@ const PublicQuoteView = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500 mt-8">
-          <p>Gerado por Aligned Proposals</p>
+          <p>Gerado por Aligned</p>
           <p className="mt-1">Sistema de Orçamentos Online</p>
         </div>
       </div>

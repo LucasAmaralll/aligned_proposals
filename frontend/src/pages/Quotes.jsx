@@ -369,10 +369,10 @@ const Quotes = () => {
               Cancelar
             </button>
             <button
-              onClick={() => navigate('/plans')}
+              onClick={() => setShowLimitModal(false)}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Ver Planos
+              Entendi
             </button>
           </div>
         </div>
