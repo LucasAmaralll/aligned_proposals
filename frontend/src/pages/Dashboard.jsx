@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import Layout from '../components/Layout';
+import PageHeader from '../components/PageHeader';
 import Loading from '../components/Loading';
 import { useAuth } from '../context/AuthContext';
 import { useCompany } from '../context/CompanyContext';
@@ -25,16 +26,16 @@ const PERIODS = [
 ];
 
 const StatCard = ({ title, value, hint }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5">
-    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{title}</p>
-    <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-    {hint && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{hint}</p>}
+  <div className="surface p-5">
+    <p className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">{title}</p>
+    <p className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{value}</p>
+    {hint && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">{hint}</p>}
   </div>
 );
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { currentUnit, units } = useCompany();
+  const { currentUnit, units, isSeller } = useCompany();
   const { darkMode } = useTheme();
   const [period, setPeriod] = useState('month');
   const [unitId, setUnitId] = useState('current');
@@ -71,22 +72,22 @@ const Dashboard = () => {
   const summary = data?.summary || {};
 
   return (
-    <Layout title="Dashboard">
+    <Layout title={isSeller ? 'Meu desempenho' : 'Dashboard'}>
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Olá, {user?.name}
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Faturamento, ticket e desempenho por loja e vendedor
-            </p>
-          </div>
+        <PageHeader
+          title={`Olá, ${user?.name?.split(' ')[0] || ''}`}
+          description={
+            isSeller
+              ? 'Suas vendas e a comissão do período. O faturamento da empresa não aparece aqui.'
+              : 'Faturamento, ticket e desempenho por loja e equipe'
+          }
+          actions={
           <div className="flex flex-wrap gap-3">
+            {!isSeller && (
             <select
               value={unitId}
               onChange={(e) => setUnitId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+              className="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
             >
               <option value="current">Unidade do header</option>
               <option value="all">Todas as unidades</option>
@@ -96,6 +97,7 @@ const Dashboard = () => {
                 </option>
               ))}
             </select>
+            )}
             <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               {PERIODS.map((item) => (
                 <button
@@ -113,7 +115,8 @@ const Dashboard = () => {
               ))}
             </div>
           </div>
-        </div>
+          }
+        />
 
         {loading ? (
           <Loading />
@@ -121,15 +124,31 @@ const Dashboard = () => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
-                title="Faturamento"
+                title={isSeller ? 'Minhas vendas' : 'Faturamento'}
                 value={formatCurrency(summary.gross || 0)}
-                hint={`Líquido ${formatCurrency(summary.net || 0)}`}
+                hint={isSeller ? `${summary.salesCount || 0} vendas` : `Líquido ${formatCurrency(summary.net || 0)}`}
               />
-              <StatCard
-                title="Vendas"
-                value={summary.salesCount || 0}
-                hint={`${summary.pieces || 0} peças`}
-              />
+              {isSeller ? (
+                <StatCard
+                  title="Comissão"
+                  value={
+                    summary.commissionRate == null
+                      ? 'Sem % definida'
+                      : formatCurrency(summary.commission || 0)
+                  }
+                  hint={
+                    summary.commissionRate == null
+                      ? 'Peça ao admin para cadastrar sua comissão'
+                      : `${summary.commissionRate}% sobre as vendas do período`
+                  }
+                />
+              ) : (
+                <StatCard
+                  title="Vendas"
+                  value={summary.salesCount || 0}
+                  hint={`${summary.pieces || 0} peças`}
+                />
+              )}
               <StatCard
                 title="Ticket médio"
                 value={formatCurrency(summary.ticket || 0)}
@@ -141,9 +160,9 @@ const Dashboard = () => {
               />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Faturamento por dia
+            <div className="surface p-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
+                {isSeller ? 'Suas vendas por dia' : 'Faturamento por dia'}
               </h2>
               {data?.byDay?.some((day) => day.total > 0) ? (
                 <div className="h-72">
@@ -173,8 +192,8 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Por loja</h2>
+              <div className="surface p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Por loja</h2>
                 {(data?.byUnit || []).length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">Sem dados.</p>
                 ) : (
@@ -192,8 +211,9 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Por vendedor</h2>
+              {!isSeller && (
+              <div className="surface p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Por vendedor</h2>
                 {(data?.bySeller || []).length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">Sem dados.</p>
                 ) : (
@@ -211,8 +231,9 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pagamentos</h2>
+              )}
+              <div className="surface p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Pagamentos</h2>
                 {(data?.byPayment || []).length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400">Sem dados.</p>
                 ) : (
@@ -231,8 +252,8 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <div className="surface p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">
                   Produtos mais vendidos
                 </h2>
                 {(data?.topProducts || []).length === 0 ? (
@@ -256,12 +277,14 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {!isSeller && (
             <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
               <span>{summary.clientsCount || 0} clientes cadastrados</span>
               <Link to="/quotes" className="text-blue-600 dark:text-blue-400">
                 {summary.pendingQuotes || 0} orçamentos pendentes
               </Link>
             </div>
+            )}
           </>
         )}
       </div>
