@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "jest",
+    "test": "NODE_ENV=test jest --runInBand",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
@@ -41,6 +41,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
-    "prisma": "^5.8.0"
+    "prisma": "^5.8.0",
+    "supertest": "^7.2.2"
   }
 }
