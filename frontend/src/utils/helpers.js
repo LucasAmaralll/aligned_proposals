@@ -15,6 +15,7 @@ export const formatClientNumber = (number) => {
 };
 
 export const formatSaleNumber = formatClientNumber;
+export const formatShipmentNumber = formatClientNumber;
 
 export const PAYMENT_METHOD_LABELS = {
   cash: 'Dinheiro',
@@ -26,6 +27,71 @@ export const PAYMENT_METHOD_LABELS = {
 
 export const getPaymentMethodLabel = (method) =>
   PAYMENT_METHOD_LABELS[method] || method;
+
+export const SALE_CHANNEL_LABELS = {
+  retail: 'Varejo',
+  wholesale: 'Atacado',
+};
+
+export const SALE_ORIGIN_LABELS = {
+  store: 'Loja',
+  ecommerce: 'E-commerce',
+  quote: 'Orçamento',
+};
+
+export const getSaleChannelLabel = (channel) =>
+  SALE_CHANNEL_LABELS[channel] || 'Varejo';
+
+export const getSaleOriginLabel = (origin) =>
+  SALE_ORIGIN_LABELS[origin] || 'Loja';
+
+export const SALE_STATUS_LABELS = {
+  completed: 'Concluída',
+  cancelled: 'Cancelada',
+};
+
+export const getSaleStatusLabel = (status) =>
+  SALE_STATUS_LABELS[status] || status;
+
+export const SHIPMENT_STATUS_LABELS = {
+  pending: 'A enviar',
+  shipped: 'Enviado',
+  cancelled: 'Cancelado',
+};
+
+export const SHIPMENT_ORIGIN_LABELS = {
+  sale: 'Loja',
+  ecommerce: 'E-commerce',
+  manual: 'Manual',
+};
+
+export const SHIPMENT_CARRIER_LABELS = {
+  correios: 'Correios',
+  motoboy: 'Motoboy',
+  other: 'Outro',
+};
+
+export const getShipmentStatusLabel = (status) =>
+  SHIPMENT_STATUS_LABELS[status] || status;
+
+export const getShipmentOriginLabel = (origin) =>
+  SHIPMENT_ORIGIN_LABELS[origin] || 'Manual';
+
+export const getShipmentCarrierLabel = (carrier) =>
+  SHIPMENT_CARRIER_LABELS[carrier] || 'Correios';
+
+export const formatShipmentAddress = (shipment) => {
+  if (!shipment) return '';
+  return [
+    shipment.address,
+    shipment.complement,
+    shipment.neighborhood,
+    [shipment.city, shipment.state].filter(Boolean).join(' / '),
+    formatZipCode(shipment.zipCode),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
 
 export const isBirthdayThisMonth = (birthDate) => {
   if (!birthDate) return false;

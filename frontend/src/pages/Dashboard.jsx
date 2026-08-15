@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCompany } from '../context/CompanyContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
-import { formatCurrency, getPaymentMethodLabel } from '../utils/helpers';
+import { formatCurrency, getPaymentMethodLabel, getSaleChannelLabel } from '../utils/helpers';
 
 const PERIODS = [
   { id: 'today', label: 'Hoje' },
@@ -243,6 +243,25 @@ const Dashboard = () => {
                         <tr key={row.method}>
                           <td className="py-2 text-gray-900 dark:text-white">
                             {getPaymentMethodLabel(row.method)}
+                          </td>
+                          <td className="py-2 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(row.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="surface p-6">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Varejo e atacado</h2>
+                {(data?.byChannel || []).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Sem dados.</p>
+                ) : (
+                  <table className="min-w-full text-sm">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {data.byChannel.map((row) => (
+                        <tr key={row.channel}>
+                          <td className="py-2 text-gray-900 dark:text-white">
+                            {getSaleChannelLabel(row.channel)}
                           </td>
                           <td className="py-2 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(row.total)}</td>
                         </tr>

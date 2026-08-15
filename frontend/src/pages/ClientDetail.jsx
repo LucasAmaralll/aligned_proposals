@@ -11,6 +11,7 @@ import {
   formatDocument,
   formatPhone,
   formatZipCode,
+  getSaleStatusLabel,
   getStatusColor,
   getStatusLabel,
   onlyDigits,
@@ -228,6 +229,11 @@ const ClientDetail = () => {
                         >
                           #{String(sale.number).padStart(4, '0')}
                         </Link>
+                        {sale.status === 'cancelled' && (
+                          <span className="ml-2 text-xs text-red-700 dark:text-red-300">
+                            {getSaleStatusLabel(sale.status)}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 pr-4 text-sm text-gray-700 dark:text-gray-300">
                         {sale.unit?.name || '—'}

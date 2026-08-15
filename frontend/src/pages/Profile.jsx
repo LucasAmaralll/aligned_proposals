@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCompany } from '../context/CompanyContext';
 import StoreForm, { storeToForm } from '../components/StoreForm';
 import StoresSettings from '../components/StoresSettings';
+import IntegrationSettings from '../components/IntegrationSettings';
 import api from '../services/api';
 
 const Profile = () => {
@@ -261,6 +262,7 @@ const Profile = () => {
     { id: 'info', name: 'Informações', icon: UserIcon },
     { id: 'company', name: 'Empresa', icon: BuildingOfficeIcon },
     ...(can('units.manage') ? [{ id: 'stores', name: 'Lojas', icon: BuildingOfficeIcon }] : []),
+    ...(can('units.manage') ? [{ id: 'integration', name: 'Integração', icon: KeyIcon }] : []),
     { id: 'logo', name: 'Logo', icon: PhotoIcon },
     { id: 'security', name: 'Segurança', icon: KeyIcon },
     { id: 'danger', name: 'Zona de Perigo', icon: TrashIcon }
@@ -383,6 +385,7 @@ const Profile = () => {
               )}
 
               {activeTab === 'stores' && can('units.manage') && <StoresSettings />}
+              {activeTab === 'integration' && can('units.manage') && <IntegrationSettings />}
 
               {/* Logo */}
               {activeTab === 'logo' && (

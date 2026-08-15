@@ -6,13 +6,14 @@ import Loading from '../components/Loading';
 import Button from '../components/Button';
 import { useCompany } from '../context/CompanyContext';
 import api from '../services/api';
-import { formatCurrency, formatDateTime, formatSaleNumber } from '../utils/helpers';
+import { formatCurrency, formatDateTime, formatSaleNumber, getSaleChannelLabel, getSaleOriginLabel, getSaleStatusLabel } from '../utils/helpers';
 
 const Sales = () => {
   const { currentUnit } = useCompany();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [channelFilter, setChannelFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
 
@@ -20,7 +21,7 @@ const Sales = () => {
     if (currentUnit?.id) {
       loadSales();
     }
-  }, [currentUnit?.id, page]);
+  }, [currentUnit?.id, page, channelFilter]);
 
   const loadSales = async () => {
     try {
@@ -29,6 +30,7 @@ const Sales = () => {
         params: {
           unitId: currentUnit.id,
           search: search || undefined,
+          channel: channelFilter === 'all' ? undefined : channelFilter,
           page,
           limit: 20,
         },
@@ -50,7 +52,7 @@ const Sales = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendas</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              PDV da unidade {currentUnit?.name || 'atual'}
+              Varejo e atacado da unidade {currentUnit?.name || 'atual'}. O orçamento é só a proposta — a venda entra aqui.
             </p>
           </div>
           <Link
@@ -89,6 +91,18 @@ const Sales = () => {
           >
             Buscar
           </Button>
+          <select
+            value={channelFilter}
+            onChange={(e) => {
+              setPage(1);
+              setChannelFilter(e.target.value);
+            }}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+          >
+            <option value="all">Todas</option>
+            <option value="retail">Varejo</option>
+            <option value="wholesale">Atacado</option>
+          </select>
         </div>
 
         {loading ? (
@@ -109,6 +123,7 @@ const Sales = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nº</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Data</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cliente</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Canal</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Vendedor</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Itens</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</th>
@@ -122,12 +137,23 @@ const Sales = () => {
                       <Link to={`/sales/${sale.id}`} className="text-blue-600 dark:text-blue-400">
                         #{formatSaleNumber(sale.number)}
                       </Link>
+                      {sale.status === 'cancelled' && (
+                        <span className="ml-2 text-xs font-medium text-red-700 dark:text-red-300">
+                          {getSaleStatusLabel(sale.status)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
                       {formatDateTime(sale.createdAt)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
                       {sale.client?.name || 'Cliente avulso'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      {getSaleChannelLabel(sale.channel)}
+                      <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        {getSaleOriginLabel(sale.origin)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                       {sale.seller?.name || '—'}
@@ -142,12 +168,16 @@ const Sales = () => {
                       <Link to={`/sales/${sale.id}`} className="text-gray-700 dark:text-gray-300">
                         Ver
                       </Link>
-                      <Link to={`/sales/${sale.id}/return`} className="text-red-600 dark:text-red-400">
-                        Devolver
-                      </Link>
-                      <Link to={`/sales/${sale.id}/exchange`} className="text-blue-600 dark:text-blue-400">
-                        Trocar
-                      </Link>
+                      {sale.status !== 'cancelled' && (
+                        <>
+                          <Link to={`/sales/${sale.id}/return`} className="text-red-600 dark:text-red-400">
+                            Devolver
+                          </Link>
+                          <Link to={`/sales/${sale.id}/exchange`} className="text-blue-600 dark:text-blue-400">
+                            Trocar
+                          </Link>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
