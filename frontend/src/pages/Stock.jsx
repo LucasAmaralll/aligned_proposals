@@ -28,16 +28,20 @@ const Stock = () => {
   });
 
   useEffect(() => {
-    if (currentUnit?.id) {
-      loadStock();
-    }
-  }, [currentUnit?.id]);
+    if (!currentUnit?.id) return undefined;
+    const timer = setTimeout(() => loadStock(), 280);
+    return () => clearTimeout(timer);
+  }, [currentUnit?.id, search]);
 
   const loadStock = async () => {
     try {
       setLoading(true);
       const response = await api.get('/stock', {
-        params: { unitId: currentUnit.id, search },
+        params: {
+          unitId: currentUnit.id,
+          limit: 80,
+          ...(search.trim() && { search: search.trim() }),
+        },
       });
       setStocks(response.data.stocks || []);
     } catch (error) {
@@ -126,13 +130,9 @@ const Stock = () => {
               placeholder="Buscar por produto, SKU, cor ou tamanho..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadStock()}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
-          <Button type="button" variant="secondary" onClick={loadStock}>
-            Buscar
-          </Button>
         </div>
 
         {loading ? (

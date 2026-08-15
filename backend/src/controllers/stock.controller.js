@@ -17,6 +17,7 @@ class StockController {
         companyId: req.companyId,
         unitId: unitId || undefined,
         search: req.query.search || undefined,
+        limit: req.query.limit,
       });
       return res.json({ stocks });
     } catch (error) {

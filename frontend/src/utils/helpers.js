@@ -9,6 +9,29 @@ export const formatDate = (date) => {
   return new Date(date).toLocaleDateString('pt-BR');
 };
 
+export const formatClientNumber = (number) => {
+  if (number === undefined || number === null) return '';
+  return String(number).padStart(4, '0');
+};
+
+export const formatSaleNumber = formatClientNumber;
+
+export const PAYMENT_METHOD_LABELS = {
+  cash: 'Dinheiro',
+  pix: 'Pix',
+  debit: 'Débito',
+  credit: 'Crédito',
+  other: 'Outro',
+};
+
+export const getPaymentMethodLabel = (method) =>
+  PAYMENT_METHOD_LABELS[method] || method;
+
+export const isBirthdayThisMonth = (birthDate) => {
+  if (!birthDate) return false;
+  return new Date(birthDate).getUTCMonth() === new Date().getMonth();
+};
+
 export const formatDateTime = (date) => {
   return new Date(date).toLocaleString('pt-BR');
 };

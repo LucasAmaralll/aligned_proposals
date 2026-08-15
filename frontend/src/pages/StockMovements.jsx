@@ -134,7 +134,7 @@ const StockMovements = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
                         <div>{movement.variant?.product?.name}</div>
-                        <div className="text-gray-500">{movement.variant?.sku}</div>
+                        <div className="text-gray-500 dark:text-gray-400">{movement.variant?.sku}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
                         {parseFloat(movement.quantity || 0)}
@@ -152,13 +152,13 @@ const StockMovements = () => {
             </div>
             {pagination.totalPages > 1 && (
               <div className="flex justify-between items-center px-6 py-3 border-t border-gray-200 dark:border-gray-700 text-sm">
-                <span className="text-gray-500">{pagination.total} registros</span>
+                <span className="text-gray-500 dark:text-gray-400">{pagination.total} registros</span>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     disabled={page <= 1}
                     onClick={() => setPage((current) => current - 1)}
-                    className="px-3 py-1 border rounded-lg disabled:opacity-50"
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 text-gray-700 dark:text-gray-200"
                   >
                     Anterior
                   </button>
@@ -166,7 +166,7 @@ const StockMovements = () => {
                     type="button"
                     disabled={page >= pagination.totalPages}
                     onClick={() => setPage((current) => current + 1)}
-                    className="px-3 py-1 border rounded-lg disabled:opacity-50"
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 text-gray-700 dark:text-gray-200"
                   >
                     Próxima
                   </button>

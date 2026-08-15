@@ -6,9 +6,14 @@ const { calculateProductPrice } = require('../utils/calculatePrice');
  */
 const getProducts = async (req, res) => {
   try {
+    const { search, limit = 40 } = req.query;
     const products = await prisma.product.findMany({
-      where: { companyId: req.companyId },
+      where: {
+        companyId: req.companyId,
+        ...(search && { name: { contains: search, mode: 'insensitive' } }),
+      },
       orderBy: { createdAt: 'desc' },
+      take: Number(limit),
     });
 
     res.json(products);

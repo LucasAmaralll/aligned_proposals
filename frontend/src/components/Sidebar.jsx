@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useSidebar } from '../context/SidebarContext';
 import { useCompany } from '../context/CompanyContext';
 import { getCompanyName } from '../utils/helpers';
+import Logo from './Logo';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -17,6 +18,8 @@ import {
   CalculatorIcon,
   CubeIcon,
   ArchiveBoxIcon,
+  ShoppingBagIcon,
+  BanknotesIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Bars3Icon
@@ -38,10 +41,12 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
+    { name: 'Vendas', icon: ShoppingBagIcon, path: '/sales' },
     { name: 'Clientes', icon: UserGroupIcon, path: '/clients' },
     { name: 'Orçamentos', icon: DocumentTextIcon, path: '/quotes' },
     { name: 'Produtos', icon: CubeIcon, path: '/products' },
     { name: 'Estoque', icon: ArchiveBoxIcon, path: '/stock' },
+    { name: 'Gastos', icon: BanknotesIcon, path: '/expenses' },
     { name: 'Precificação', icon: CalculatorIcon, path: '/pricing' },
     { name: 'Perfil', icon: UserCircleIcon, path: '/profile' },
   ];
@@ -75,20 +80,18 @@ const Sidebar = () => {
         <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
           {/* Logo */}
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} p-6 border-b border-gray-200 dark:border-gray-700`}>
-            <Link to="/dashboard" className="flex items-center">
+            <Link to="/dashboard" className="flex items-center min-w-0">
               {!isCollapsed ? (
-                <div className="flex flex-col">
-                  <span className="text-2xl font-semibold tracking-tight text-gray-800 dark:text-white" style={{ fontFamily: "'Inter', 'Helvetica Neue', sans-serif" }}>
-                    {companyName || 'Aligned'}
-                  </span>
-                  <span className="text-sm italic text-gray-600 dark:text-gray-400 -mt-1 self-end" style={{ fontFamily: "'Georgia', serif" }}>
-                    Gestão
-                  </span>
+                <div className="flex flex-col items-start min-w-0">
+                  <Logo variant="full" className="h-16 w-auto" />
+                  {companyName && (
+                    <span className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate max-w-[160px]">
+                      {companyName}
+                    </span>
+                  )}
                 </div>
               ) : (
-                <span className="text-xl font-semibold text-gray-800 dark:text-white">
-                  {(companyName || 'A').charAt(0).toUpperCase()}
-                </span>
+                <Logo variant="mark" className="h-8 w-auto" />
               )}
             </Link>
             <button

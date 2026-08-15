@@ -27,13 +27,19 @@ const Products = () => {
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const timer = setTimeout(() => loadProducts(), 280);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/catalog/products');
+      const response = await api.get('/catalog/products', {
+        params: {
+          limit: 40,
+          ...(search.trim() && { search: search.trim() }),
+        },
+      });
       setProducts(response.data.products || []);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
@@ -43,16 +49,7 @@ const Products = () => {
     }
   };
 
-  const filtered = products.filter((product) => {
-    const term = search.toLowerCase();
-    return (
-      product.name.toLowerCase().includes(term) ||
-      (product.category?.name || '').toLowerCase().includes(term) ||
-      (product.variants || []).some((variant) =>
-        (variant.sku || '').toLowerCase().includes(term)
-      )
-    );
-  });
+  const filtered = products;
 
   return (
     <Layout title="Produtos">

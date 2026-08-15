@@ -17,7 +17,7 @@ const productInclude = {
 class CatalogController {
   async list(req, res) {
     try {
-      const { search, active } = req.query;
+      const { search, active, limit = 40 } = req.query;
       const products = await prisma.product.findMany({
         where: {
           companyId: req.companyId,
@@ -31,6 +31,7 @@ class CatalogController {
         },
         include: productInclude,
         orderBy: { name: 'asc' },
+        take: Number(limit),
       });
       return res.json({ products });
     } catch (error) {

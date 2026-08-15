@@ -16,6 +16,7 @@ import PublicQuoteView from './pages/PublicQuoteView';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
 import ClientForm from './pages/ClientForm';
+import ClientDetail from './pages/ClientDetail';
 import Quotes from './pages/Quotes';
 import QuoteDetail from './pages/QuoteDetail';
 import QuoteForm from './pages/QuoteForm';
@@ -26,6 +27,12 @@ import ProductForm from './pages/ProductForm';
 import ProductDetail from './pages/ProductDetail';
 import Stock from './pages/Stock';
 import StockMovements from './pages/StockMovements';
+import Sales from './pages/Sales';
+import Pos from './pages/Pos';
+import SaleDetail from './pages/SaleDetail';
+import SaleReturn from './pages/SaleReturn';
+import SaleExchange from './pages/SaleExchange';
+import Expenses from './pages/Expenses';
 
 function App() {
   return (
@@ -76,6 +83,14 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/clients/:id"
+              element={
+                <PrivateRoute>
+                  <ClientDetail />
+                </PrivateRoute>
+              }
+            />
             
             {/* Private routes - Quotes */}
             <Route
@@ -111,6 +126,48 @@ function App() {
               }
             />
             
+            {/* Private routes - Sales */}
+            <Route
+              path="/sales"
+              element={
+                <PrivateRoute>
+                  <Sales />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/new"
+              element={
+                <PrivateRoute>
+                  <Pos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id/return"
+              element={
+                <PrivateRoute>
+                  <SaleReturn />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id/exchange"
+              element={
+                <PrivateRoute>
+                  <SaleExchange />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/sales/:id"
+              element={
+                <PrivateRoute>
+                  <SaleDetail />
+                </PrivateRoute>
+              }
+            />
+
             {/* Private routes - Catalog */}
             <Route
               path="/products"
@@ -151,6 +208,16 @@ function App() {
               element={
                 <PrivateRoute>
                   <StockMovements />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Private routes - Expenses */}
+            <Route
+              path="/expenses"
+              element={
+                <PrivateRoute>
+                  <Expenses />
                 </PrivateRoute>
               }
             />

@@ -188,7 +188,9 @@ const variantSearch = (search) =>
       }
     : {};
 
-async function listStock({ companyId, unitId, search }) {
+async function listStock({ companyId, unitId, search, limit }) {
+  const take = Math.min(Math.max(Number(limit) || 80, 1), 200);
+
   if (unitId) {
     const [unit, variants] = await Promise.all([
       prisma.unit.findFirst({ where: { id: unitId, companyId } }),
@@ -204,6 +206,7 @@ async function listStock({ companyId, unitId, search }) {
           stocks: { where: { unitId }, include: { unit: true } },
         },
         orderBy: [{ sku: 'asc' }],
+        take,
       }),
     ]);
 
@@ -242,6 +245,7 @@ async function listStock({ companyId, unitId, search }) {
       },
     },
     orderBy: [{ unit: { name: 'asc' } }, { variant: { sku: 'asc' } }],
+    take,
   });
 }
 

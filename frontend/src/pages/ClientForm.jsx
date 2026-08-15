@@ -6,6 +6,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
 import api from '../services/api';
+import { formatClientNumber } from '../utils/helpers';
 
 const ClientForm = () => {
   const navigate = useNavigate();
@@ -14,11 +15,13 @@ const ClientForm = () => {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
+  const [clientNumber, setClientNumber] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     document: '',
+    birthDate: '',
     address: '',
     city: '',
     state: '',
@@ -35,7 +38,19 @@ const ClientForm = () => {
     try {
       setLoadingData(true);
       const response = await api.get(`/clients/${id}`);
-      setFormData(response.data);
+      const data = response.data;
+      setClientNumber(data.number);
+      setFormData({
+        name: data.name || '',
+        email: data.email || '',
+        phone: data.phone || '',
+        document: data.document || '',
+        birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : '',
+        address: data.address || '',
+        city: data.city || '',
+        state: data.state || '',
+        zipCode: data.zipCode || '',
+      });
     } catch (error) {
       console.error('Erro ao carregar cliente:', error);
       alert('Erro ao carregar cliente');
@@ -63,13 +78,18 @@ const ClientForm = () => {
     try {
       setLoading(true);
       
+      const payload = {
+        ...formData,
+        birthDate: formData.birthDate || null,
+      };
+
       if (isEdit) {
-        await api.put(`/clients/${id}`, formData);
+        await api.put(`/clients/${id}`, payload);
+        navigate(`/clients/${id}`);
       } else {
-        await api.post('/clients', formData);
+        const response = await api.post('/clients', payload);
+        navigate(`/clients/${response.data.id}`);
       }
-      
-      navigate('/clients');
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
       alert('Erro ao salvar cliente');
@@ -105,7 +125,9 @@ const ClientForm = () => {
                 {isEdit ? 'Editar Cliente' : 'Novo Cliente'}
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                {isEdit ? 'Atualize as informações do cliente' : 'Adicione um novo cliente'}
+                {isEdit
+                  ? `Cliente #${formatClientNumber(clientNumber)}`
+                  : 'O número do cliente é gerado automaticamente'}
               </p>
             </div>
 
@@ -147,6 +169,14 @@ const ClientForm = () => {
                     label="CPF/CNPJ"
                     name="document"
                     value={formData.document}
+                    onChange={handleChange}
+                  />
+
+                  <Input
+                    label="Data de nascimento"
+                    type="date"
+                    name="birthDate"
+                    value={formData.birthDate}
                     onChange={handleChange}
                   />
                 </div>

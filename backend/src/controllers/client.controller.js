@@ -1,28 +1,51 @@
 const prisma = require('../lib/prisma');
+const {
+  nextClientNumber,
+  parseBirthDate,
+  buildClientSearch,
+} = require('../services/client.service');
+
+const quoteHistorySelect = {
+  id: true,
+  title: true,
+  status: true,
+  total: true,
+  createdAt: true,
+};
 
 class ClientController {
   async create(req, res) {
     try {
-      const { name, email, phone, document, address, city, state, zipCode } = req.body;
+      const { name, email, phone, document, birthDate, address, city, state, zipCode } = req.body;
 
       if (!name) {
         return res.status(400).json({ error: 'Nome é obrigatório' });
       }
 
-      const client = await prisma.client.create({
-        data: {
-          name,
-          email,
-          phone,
-          document,
-          address,
-          city,
-          state,
-          zipCode,
-          status: 1,
-          userId: req.userId,
-          companyId: req.companyId,
-        },
+      const parsedBirthDate = parseBirthDate(birthDate);
+      if (birthDate && parsedBirthDate === undefined) {
+        return res.status(400).json({ error: 'Data de nascimento inválida' });
+      }
+
+      const client = await prisma.$transaction(async (tx) => {
+        const number = await nextClientNumber(req.companyId, tx);
+        return tx.client.create({
+          data: {
+            number,
+            name,
+            email,
+            phone,
+            document,
+            birthDate: parsedBirthDate || null,
+            address,
+            city,
+            state,
+            zipCode,
+            status: 1,
+            userId: req.userId,
+            companyId: req.companyId,
+          },
+        });
       });
 
       return res.status(201).json(client);
@@ -34,18 +57,12 @@ class ClientController {
 
   async list(req, res) {
     try {
-      const { search, page = 1, limit = 10 } = req.query;
+      const { search, page = 1, limit = 100, birthdayMonth } = req.query;
 
       const where = {
         companyId: req.companyId,
         status: 1,
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
+        ...buildClientSearch(search),
       };
 
       const [clients, total] = await Promise.all([
@@ -56,20 +73,29 @@ class ClientController {
               select: { quotes: true },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ number: 'asc' }],
           skip: (Number(page) - 1) * Number(limit),
           take: Number(limit),
         }),
         prisma.client.count({ where }),
       ]);
 
+      const month = Number(birthdayMonth);
+      const filtered =
+        month >= 1 && month <= 12
+          ? clients.filter((client) => {
+              if (!client.birthDate) return false;
+              return new Date(client.birthDate).getUTCMonth() + 1 === month;
+            })
+          : clients;
+
       return res.json({
-        clients,
+        clients: filtered,
         pagination: {
           page: Number(page),
           limit: Number(limit),
-          total,
-          totalPages: Math.ceil(total / Number(limit)),
+          total: birthdayMonth ? filtered.length : total,
+          totalPages: Math.ceil((birthdayMonth ? filtered.length : total) / Number(limit)),
         },
       });
     } catch (error) {
@@ -91,8 +117,20 @@ class ClientController {
         include: {
           quotes: {
             where: { deletionStatus: 1, companyId: req.companyId },
+            select: quoteHistorySelect,
             orderBy: { createdAt: 'desc' },
-            take: 5,
+          },
+          sales: {
+            where: { companyId: req.companyId },
+            select: {
+              id: true,
+              number: true,
+              total: true,
+              status: true,
+              createdAt: true,
+              unit: { select: { id: true, name: true } },
+            },
+            orderBy: { createdAt: 'desc' },
           },
         },
       });
@@ -101,7 +139,24 @@ class ClientController {
         return res.status(404).json({ error: 'Cliente não encontrado' });
       }
 
-      return res.json(client);
+      const quotesTotal = client.quotes.reduce(
+        (sum, quote) => sum + parseFloat(quote.total || 0),
+        0
+      );
+      const salesTotal = client.sales.reduce(
+        (sum, sale) => sum + parseFloat(sale.total || 0),
+        0
+      );
+
+      return res.json({
+        ...client,
+        history: {
+          quotesCount: client.quotes.length,
+          quotesTotal,
+          salesCount: client.sales.length,
+          salesTotal,
+        },
+      });
     } catch (error) {
       console.error('Erro ao buscar cliente:', error);
       return res.status(500).json({ error: 'Erro ao buscar cliente' });
@@ -111,7 +166,7 @@ class ClientController {
   async update(req, res) {
     try {
       const { id } = req.params;
-      const { name, email, phone, document, address, city, state, zipCode } = req.body;
+      const { name, email, phone, document, birthDate, address, city, state, zipCode } = req.body;
 
       const clientExists = await prisma.client.findFirst({
         where: {
@@ -125,6 +180,11 @@ class ClientController {
         return res.status(404).json({ error: 'Cliente não encontrado' });
       }
 
+      const parsedBirthDate = parseBirthDate(birthDate);
+      if (birthDate && parsedBirthDate === undefined) {
+        return res.status(400).json({ error: 'Data de nascimento inválida' });
+      }
+
       const client = await prisma.client.update({
         where: { id },
         data: {
@@ -132,6 +192,7 @@ class ClientController {
           email,
           phone,
           document,
+          ...(birthDate !== undefined && { birthDate: parsedBirthDate || null }),
           address,
           city,
           state,

@@ -12,6 +12,7 @@ import {
   MoonIcon
 } from '@heroicons/react/24/outline';
 import { useTheme } from '../context/ThemeContext';
+import Logo from '../components/Logo';
 
 const LandingPage = () => {
   const { darkMode, toggleDarkMode } = useTheme();
@@ -55,13 +56,9 @@ const LandingPage = () => {
       <header className="border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                  Aligned
-                </h1>
-              </div>
-            </div>
+            <Link to="/" className="flex items-center">
+              <Logo variant="mark" className="h-10 w-auto" />
+            </Link>
             
             <div className="flex items-center gap-4">
               <button
@@ -97,6 +94,7 @@ const LandingPage = () => {
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
+          <Logo variant="full" className="h-36 md:h-44 w-auto mx-auto mb-8" />
           <h2 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
             Pare de Fazer Orçamentos à Mão
             <span className="block bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mt-2">
@@ -187,6 +185,7 @@ const LandingPage = () => {
       {/* Footer */}
       <footer className="py-8 px-4 sm:px-6 lg:px-8 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto text-center text-gray-600 dark:text-gray-400">
+          <Logo variant="mark" className="h-8 w-auto mx-auto mb-3" />
           <p>&copy; 2026 Aligned. Todos os direitos reservados.</p>
         </div>
       </footer>

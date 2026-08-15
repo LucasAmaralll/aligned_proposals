@@ -14,6 +14,9 @@ const companyRoutes = require('./routes/company.routes');
 const categoryRoutes = require('./routes/category.routes');
 const catalogRoutes = require('./routes/catalog.routes');
 const stockRoutes = require('./routes/stock.routes');
+const saleRoutes = require('./routes/sale.routes');
+const reportRoutes = require('./routes/report.routes');
+const expenseRoutes = require('./routes/expense.routes');
 
 const app = express();
 
@@ -54,6 +57,9 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/catalog', catalogRoutes);
 app.use('/api/stock', stockRoutes);
+app.use('/api/sales', saleRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {

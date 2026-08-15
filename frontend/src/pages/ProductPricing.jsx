@@ -15,10 +15,12 @@ const ProductPricing = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const timer = setTimeout(() => loadProducts(), 280);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     if (id) {
@@ -30,7 +32,12 @@ const ProductPricing = () => {
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/products');
+      const response = await api.get('/products', {
+        params: {
+          limit: 40,
+          ...(search.trim() && { search: search.trim() }),
+        },
+      });
       setProducts(response.data);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
@@ -186,6 +193,12 @@ const ProductPricing = () => {
             {!showForm && !isLoading && (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Produtos Salvos</h2>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar produto da precificação..."
+                  className="w-full mb-4 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400"
+                />
                 {products.length === 0 ? (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <p>Nenhum produto cadastrado ainda.</p>
