@@ -1,19 +1,20 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import api from '../services/api';
+import { hasPermission, isAdmin, isSeller } from '../utils/permissions';
 
 const CompanyContext = createContext({});
 
 const UNIT_STORAGE_KEY = 'currentUnitId';
 
 export const CompanyProvider = ({ children }) => {
-  const { user, signed } = useAuth();
+  const { user, signed, refreshUser } = useAuth();
   const [currentUnitId, setCurrentUnitIdState] = useState(() =>
     localStorage.getItem(UNIT_STORAGE_KEY)
   );
+  const [company, setCompany] = useState(user?.company || null);
+  const [units, setUnits] = useState(user?.units || []);
 
-  const units = useMemo(() => user?.units || [], [user]);
-  const company = user?.company || null;
   const role = user?.role || null;
 
   const currentUnit = useMemo(() => {
@@ -21,14 +22,36 @@ export const CompanyProvider = ({ children }) => {
     return units.find((unit) => unit.id === currentUnitId) || units[0];
   }, [units, currentUnitId]);
 
+  const refreshCompany = async () => {
+    if (!signed) return null;
+    const response = await api.get('/companies/me');
+    setCompany(response.data);
+    setUnits(response.data.units || []);
+    try {
+      await refreshUser();
+    } catch (error) {
+      // sessão ainda vale; unidades já vieram da empresa
+    }
+    return response.data;
+  };
+
   useEffect(() => {
     if (!signed) {
       localStorage.removeItem(UNIT_STORAGE_KEY);
       delete api.defaults.headers['X-Unit-Id'];
       setCurrentUnitIdState(null);
+      setCompany(null);
+      setUnits([]);
       return;
     }
 
+    refreshCompany().catch(() => {
+      setCompany(user?.company || null);
+      setUnits(user?.units || []);
+    });
+  }, [signed, user?.id]);
+
+  useEffect(() => {
     if (currentUnit?.id) {
       localStorage.setItem(UNIT_STORAGE_KEY, currentUnit.id);
       api.defaults.headers['X-Unit-Id'] = currentUnit.id;
@@ -36,7 +59,7 @@ export const CompanyProvider = ({ children }) => {
         setCurrentUnitIdState(currentUnit.id);
       }
     }
-  }, [signed, currentUnit, currentUnitId]);
+  }, [currentUnit, currentUnitId]);
 
   const setCurrentUnitId = (unitId) => {
     const exists = units.some((unit) => unit.id === unitId);
@@ -54,6 +77,10 @@ export const CompanyProvider = ({ children }) => {
         units,
         currentUnit,
         setCurrentUnitId,
+        refreshCompany,
+        isAdmin: isAdmin(role),
+        isSeller: isSeller(role),
+        can: (permission) => hasPermission(role, permission),
       }}
     >
       {children}

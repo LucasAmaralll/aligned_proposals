@@ -11,11 +11,30 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
+import { useCompany } from '../context/CompanyContext';
+import StoreForm, { storeToForm } from '../components/StoreForm';
+import StoresSettings from '../components/StoresSettings';
 import api from '../services/api';
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
+  const { company, can, refreshCompany } = useCompany();
   const [activeTab, setActiveTab] = useState('info');
+  const [companyForm, setCompanyForm] = useState(() =>
+    storeToForm({
+      name: company?.name || user?.company?.name || user?.companyName || '',
+      document: company?.document || '',
+      phone: company?.phone || '',
+      email: company?.email || '',
+      zip: company?.zip || '',
+      street: company?.street || '',
+      number: company?.number || '',
+      complement: company?.complement || '',
+      neighborhood: company?.neighborhood || '',
+      city: company?.city || '',
+      state: company?.state || '',
+    })
+  );
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   
@@ -40,12 +59,30 @@ const Profile = () => {
     user?.logo ? `${baseUrl}${user.logo}` : null
   );
 
-  // Atualizar preview quando user.logo mudar
   useEffect(() => {
     if (user?.logo) {
       setLogoPreview(`${baseUrl}${user.logo}`);
     }
   }, [user?.logo, baseUrl]);
+
+  useEffect(() => {
+    if (!company) return;
+    setCompanyForm(
+      storeToForm({
+        name: company.name || '',
+        document: company.document || '',
+        phone: company.phone || '',
+        email: company.email || '',
+        zip: company.zip || '',
+        street: company.street || '',
+        number: company.number || '',
+        complement: company.complement || '',
+        neighborhood: company.neighborhood || '',
+        city: company.city || '',
+        state: company.state || '',
+      })
+    );
+  }, [company]);
 
   const handleChange = (e) => {
     setFormData({
@@ -196,7 +233,7 @@ const Profile = () => {
       setLoading(true);
       await api.delete('/users/account');
       alert('Conta excluída com sucesso');
-      logout();
+      signOut();
     } catch (error) {
       console.error('Erro ao excluir conta:', error);
       alert(error.response?.data?.error || 'Erro ao excluir conta');
@@ -206,9 +243,24 @@ const Profile = () => {
     }
   };
 
+  const handleUpdateCompany = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      await api.patch('/companies/me', companyForm);
+      await refreshCompany();
+      alert('Cadastro da empresa atualizado');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Erro ao atualizar empresa');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'info', name: 'Informações', icon: UserIcon },
     { id: 'company', name: 'Empresa', icon: BuildingOfficeIcon },
+    ...(can('units.manage') ? [{ id: 'stores', name: 'Lojas', icon: BuildingOfficeIcon }] : []),
     { id: 'logo', name: 'Logo', icon: PhotoIcon },
     { id: 'security', name: 'Segurança', icon: KeyIcon },
     { id: 'danger', name: 'Zona de Perigo', icon: TrashIcon }
@@ -306,30 +358,31 @@ const Profile = () => {
 
               {/* Informações da Empresa */}
               {activeTab === 'company' && (
-                <form onSubmit={handleUpdateInfo} className="space-y-6">
+                <form onSubmit={handleUpdateCompany} className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Informações da Empresa
+                      Cadastro da empresa
                     </h3>
-                    <Input
-                      label="Nome da Empresa"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleChange}
-                      placeholder="Digite o nome da sua empresa"
-                    />
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                      Esta informação aparecerá nos seus orçamentos
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Dados gerais da marca. Cada loja tem o próprio cadastro na aba Lojas.
                     </p>
+                    <StoreForm form={companyForm} setForm={setCompanyForm} showType={false} />
                   </div>
-                  
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Salvando...' : 'Salvar Alterações'}
-                    </Button>
-                  </div>
+                  {can('units.manage') ? (
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={loading}>
+                        {loading ? 'Salvando...' : 'Salvar empresa'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Só o administrador altera o cadastro da empresa.
+                    </p>
+                  )}
                 </form>
               )}
+
+              {activeTab === 'stores' && can('units.manage') && <StoresSettings />}
 
               {/* Logo */}
               {activeTab === 'logo' && (

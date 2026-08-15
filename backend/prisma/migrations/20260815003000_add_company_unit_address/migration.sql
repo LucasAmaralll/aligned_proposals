@@ -1,0 +1,20 @@
+ALTER TABLE "companies" ADD COLUMN "phone" TEXT;
+ALTER TABLE "companies" ADD COLUMN "email" TEXT;
+ALTER TABLE "companies" ADD COLUMN "zip" TEXT;
+ALTER TABLE "companies" ADD COLUMN "street" TEXT;
+ALTER TABLE "companies" ADD COLUMN "number" TEXT;
+ALTER TABLE "companies" ADD COLUMN "complement" TEXT;
+ALTER TABLE "companies" ADD COLUMN "neighborhood" TEXT;
+ALTER TABLE "companies" ADD COLUMN "city" TEXT;
+ALTER TABLE "companies" ADD COLUMN "state" TEXT;
+
+ALTER TABLE "units" ADD COLUMN "document" TEXT;
+ALTER TABLE "units" ADD COLUMN "phone" TEXT;
+ALTER TABLE "units" ADD COLUMN "email" TEXT;
+ALTER TABLE "units" ADD COLUMN "zip" TEXT;
+ALTER TABLE "units" ADD COLUMN "street" TEXT;
+ALTER TABLE "units" ADD COLUMN "number" TEXT;
+ALTER TABLE "units" ADD COLUMN "complement" TEXT;
+ALTER TABLE "units" ADD COLUMN "neighborhood" TEXT;
+ALTER TABLE "units" ADD COLUMN "city" TEXT;
+ALTER TABLE "units" ADD COLUMN "state" TEXT;
