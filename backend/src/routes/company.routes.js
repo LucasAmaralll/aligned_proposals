@@ -1,5 +1,5 @@
 const express = require('express');
-const clientController = require('../controllers/client.controller');
+const companyController = require('../controllers/company.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { tenantMiddleware } = require('../middlewares/tenant.middleware');
 
@@ -8,10 +8,7 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(tenantMiddleware);
 
-router.post('/', clientController.create);
-router.get('/', clientController.list);
-router.get('/:id', clientController.getById);
-router.put('/:id', clientController.update);
-router.delete('/:id', clientController.delete);
+router.get('/me', companyController.me);
+router.get('/me/units', companyController.listUnits);
 
 module.exports = router;

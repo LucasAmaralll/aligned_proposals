@@ -1,7 +1,10 @@
 const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
+const {
+  USER_TENANT_INCLUDE,
+  provisionCompanyForUser,
+  sanitizeUser,
+} = require('../services/tenant.service');
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -25,18 +28,26 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Buscar usuário completo com plano
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { plan: true }
+      include: USER_TENANT_INCLUDE,
     });
 
     if (!user) {
       return res.status(401).json({ error: 'Usuário não encontrado' });
     }
 
+    if (user.active === false) {
+      return res.status(401).json({ error: 'Usuário inativo' });
+    }
+
+    if (!user.companyId) {
+      user = await provisionCompanyForUser(user);
+    }
+
     req.userId = decoded.id;
-    req.user = user;
+    req.user = sanitizeUser(user);
+    req.companyId = user.companyId;
 
     return next();
   } catch (err) {

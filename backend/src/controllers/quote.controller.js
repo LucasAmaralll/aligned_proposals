@@ -1,8 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../lib/prisma');
 const pdfService = require('../services/pdf.service');
 const emailService = require('../services/email.service');
-
-const prisma = new PrismaClient();
 
 class QuoteController {
   async create(req, res) {
@@ -56,7 +54,7 @@ class QuoteController {
       const client = await prisma.client.findFirst({
         where: {
           id: clientId,
-          userId: req.userId
+          companyId: req.companyId,
         }
       });
 
@@ -73,6 +71,9 @@ class QuoteController {
           deletionStatus: 1,
           user: {
             connect: { id: req.userId }
+          },
+          company: {
+            connect: { id: req.companyId }
           },
           client: {
             connect: { id: clientId }
@@ -92,7 +93,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -117,7 +118,7 @@ class QuoteController {
       const { search, status, clientId, page = 1, limit = 10 } = req.query;
 
       const where = {
-        userId: req.userId,
+        companyId: req.companyId,
         deletionStatus: 1, // Apenas orçamentos ativos
         ...(status && { status }),
         ...(clientId && { clientId }),
@@ -197,12 +198,12 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          companyId: req.companyId
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -249,10 +250,13 @@ class QuoteController {
           user: {
             select: {
               name: true,
-              company: true,
+              companyName: true,
               email: true,
               phone: true,
-              logo: true
+              logo: true,
+              company: {
+                select: { id: true, name: true }
+              }
             }
           }
         }
@@ -289,7 +293,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -342,7 +346,7 @@ class QuoteController {
       const quoteExists = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId
+          companyId: req.companyId
         }
       });
 
@@ -411,7 +415,7 @@ class QuoteController {
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -436,7 +440,7 @@ class QuoteController {
       const quoteExists = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         }
       });
@@ -465,13 +469,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -522,13 +526,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });
@@ -560,13 +564,13 @@ class QuoteController {
       const quote = await prisma.quote.findFirst({
         where: {
           id,
-          userId: req.userId,
+          companyId: req.companyId,
           deletionStatus: 1 // Apenas orçamentos ativos
         },
         include: {
           client: true,
           user: {
-            include: { plan: true }
+            include: { plan: true, company: true }
           }
         }
       });

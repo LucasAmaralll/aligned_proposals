@@ -1,113 +1,230 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../src/lib/prisma');
+const bcrypt = require('bcryptjs');
+const { ensureRoles } = require('../src/services/tenant.service');
 
 async function seedPlans() {
-  try {
-    console.log('🌱 Criando planos padrão...');
+  const existingPlans = await prisma.plan.findMany();
+  if (existingPlans.length > 0) {
+    console.log(`Planos já existem (${existingPlans.length}).`);
+    return;
+  }
 
-    // Verificar se já existem planos
-    const existingPlans = await prisma.plan.findMany();
-    if (existingPlans.length > 0) {
-      console.log('⚠️  Planos já existem no banco de dados!');
-      console.log(`📊 Total de planos: ${existingPlans.length}`);
-      existingPlans.forEach(plan => {
-        console.log(`   - ${plan.name}: R$ ${plan.price.toFixed(2)}`);
-      });
-      return;
-    }
+  const plans = [
+    {
+      name: 'Gratuito',
+      price: 0,
+      quotesLimit: 5,
+      hasWatermark: true,
+      features: [
+        '5 orçamentos por mês',
+        'PDF com marca d\'água',
+        'Cadastro de clientes',
+      ],
+    },
+    {
+      name: 'Básico',
+      price: 29.9,
+      quotesLimit: 50,
+      hasWatermark: false,
+      features: ['50 orçamentos por mês', 'PDF sem marca d\'água'],
+    },
+    {
+      name: 'Pro',
+      price: 79.9,
+      quotesLimit: -1,
+      hasWatermark: false,
+      features: ['Orçamentos ilimitados', 'Relatórios'],
+    },
+  ];
 
-    // Criar planos
-    const plans = [
-      {
-        name: 'Gratuito',
-        price: 0,
-        quotesLimit: 5,
-        hasWatermark: true,
-        features: [
-          '5 orçamentos por mês',
-          'PDF com marca d\'água',
-          'Cadastro de clientes',
-          'Envio via WhatsApp',
-          'Envio via Email',
-          'Página pública',
-          '❌ Sem Dashboard',
-          '❌ Sem Precificação Inteligente',
-        ],
-      },
-      {
-        name: 'Básico',
-        price: 29.90,
-        quotesLimit: 50,
-        hasWatermark: false,
-        features: [
-          '50 orçamentos por mês',
-          'PDF sem marca d\'água',
-          'Cadastro ilimitado de clientes',
-          'Envio via WhatsApp',
-          'Envio via Email',
-          'Página pública',
-          'Logo personalizado',
-          '✅ Precificação Inteligente',
-          '❌ Dashboard Limitado',
-          'Suporte por email',
-        ],
-      },
-      {
-        name: 'Pro',
-        price: 79.90,
-        quotesLimit: -1, // -1 = ilimitado
-        hasWatermark: false,
-        features: [
-          '✅ Orçamentos ILIMITADOS',
-          'PDF sem marca d\'água',
-          'Cadastro ilimitado de clientes',
-          'Envio via WhatsApp',
-          'Envio via Email',
-          'Página pública',
-          'Logo personalizado',
-          '✅ Precificação Inteligente Completa',
-          '✅ Dashboard Completo',
-          '✅ Relatórios Avançados',
-          '✅ Análise de Custos Detalhada',
-          'Suporte prioritário',
-          'API de integração',
-        ],
-      },
-    ];
-
-    for (const planData of plans) {
-      const plan = await prisma.plan.create({
-        data: planData,
-      });
-      console.log(`✅ Plano "${plan.name}" criado com sucesso!`);
-    }
-
-    console.log('\n🎉 Todos os planos foram criados!');
-    console.log('\n📋 Resumo:');
-    
-    const allPlans = await prisma.plan.findMany();
-    allPlans.forEach(plan => {
-      const limit = plan.quotesLimit === -1 ? 'Ilimitado' : `${plan.quotesLimit}/mês`;
-      console.log(`\n${plan.name}`);
-      console.log(`   💰 Preço: R$ ${plan.price.toFixed(2)}`);
-      console.log(`   📊 Limite: ${limit}`);
-      console.log(`   🏷️  Marca d'água: ${plan.hasWatermark ? 'Sim' : 'Não'}`);
-    });
-
-  } catch (error) {
-    console.error('❌ Erro ao criar planos:', error);
-    throw error;
-  } finally {
-    await prisma.$disconnect();
+  for (const planData of plans) {
+    await prisma.plan.create({ data: planData });
+    console.log(`Plano "${planData.name}" criado.`);
   }
 }
 
-seedPlans()
-  .then(() => {
-    console.log('\n✨ Seed concluído!');
+async function upsertCompany({ name, slug, document, units }) {
+  const company = await prisma.company.upsert({
+    where: { slug },
+    update: { name, document, active: true },
+    create: {
+      name,
+      slug,
+      document,
+      units: {
+        create: units,
+      },
+    },
+    include: { units: true },
+  });
+
+  for (const unit of units) {
+    await prisma.unit.upsert({
+      where: {
+        companyId_name: {
+          companyId: company.id,
+          name: unit.name,
+        },
+      },
+      update: { type: unit.type, active: true },
+      create: {
+        companyId: company.id,
+        name: unit.name,
+        type: unit.type,
+      },
+    });
+  }
+
+  return prisma.company.findUnique({
+    where: { id: company.id },
+    include: { units: { orderBy: { name: 'asc' } } },
+  });
+}
+
+async function upsertDemoUser({ email, name, password, company, role, unitNames }) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    console.log(`Usuário ${email} já existe.`);
+    return existing;
+  }
+
+  const hashed = await bcrypt.hash(password, 10);
+  const freePlan = await prisma.plan.findUnique({ where: { name: 'Gratuito' } });
+  const units = company.units.filter((unit) => unitNames.includes(unit.name));
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name,
+      password: hashed,
+      companyName: company.name,
+      companyId: company.id,
+      roleId: role.id,
+      planId: freePlan?.id,
+      subscriptionStatus: 'active',
+      units: {
+        create: units.map((unit) => ({ unitId: unit.id })),
+      },
+    },
+  });
+
+  console.log(`Usuário ${email} criado (${role.name} @ ${company.name}).`);
+  return user;
+}
+
+async function renameLegacyCompanies() {
+  await prisma.company.updateMany({
+    where: { slug: 'reversa' },
+    data: { name: 'Reveza', slug: 'reveza' },
+  });
+  await prisma.company.updateMany({
+    where: { slug: 'reza' },
+    data: { name: 'Rezza', slug: 'rezza' },
+  });
+
+  const reveza = await prisma.company.findUnique({ where: { slug: 'reveza' } });
+  const rezza = await prisma.company.findUnique({ where: { slug: 'rezza' } });
+
+  if (reveza) {
+    await prisma.user.updateMany({
+      where: { email: 'leo.a@example.org' },
+      data: {
+        email: 'samuel.w@example.com',
+        name: 'Admin Reveza',
+        companyName: 'Reveza',
+      },
+    });
+  }
+
+  if (rezza) {
+    await prisma.user.updateMany({
+      where: { email: 'james.b@example.com' },
+      data: {
+        email: 'uma.s@example.org',
+        name: 'Admin Rezza',
+        companyName: 'Rezza',
+      },
+    });
+  }
+}
+
+async function seedCategories(company) {
+  const names = ['Camisetas', 'Calças', 'Acessórios'];
+  for (const name of names) {
+    await prisma.category.upsert({
+      where: {
+        companyId_name: { companyId: company.id, name },
+      },
+      update: { active: true },
+      create: { companyId: company.id, name },
+    });
+  }
+  console.log(`Categorias padrão em ${company.name}.`);
+}
+
+async function main() {
+  console.log('Seed: papéis, empresas e usuários demo');
+
+  await renameLegacyCompanies();
+
+  const roles = await ensureRoles();
+  console.log('Papéis: admin, manager, seller');
+
+  await seedPlans();
+
+  const reveza = await upsertCompany({
+    name: 'Reveza',
+    slug: 'reveza',
+    document: null,
+    units: [
+      { name: 'Loja 1', type: 'store' },
+      { name: 'Loja 2', type: 'store' },
+      { name: 'Fábrica', type: 'factory' },
+    ],
+  });
+  console.log('Empresa Reveza: Loja 1, Loja 2, Fábrica');
+
+  const rezza = await upsertCompany({
+    name: 'Rezza',
+    slug: 'rezza',
+    document: null,
+    units: [{ name: 'Fábrica', type: 'factory' }],
+  });
+  console.log('Empresa Rezza: Fábrica');
+
+  await seedCategories(reveza);
+  await seedCategories(rezza);
+
+  await upsertDemoUser({
+    email: 'samuel.w@example.com',
+    name: 'Admin Reveza',
+    password: 'reveza123',
+    company: reveza,
+    role: roles.admin,
+    unitNames: ['Loja 1', 'Loja 2', 'Fábrica'],
+  });
+
+  await upsertDemoUser({
+    email: 'uma.s@example.org',
+    name: 'Admin Rezza',
+    password: 'rezza123',
+    company: rezza,
+    role: roles.admin,
+    unitNames: ['Fábrica'],
+  });
+
+  console.log('\nSeed concluído.');
+  console.log('Login Reveza: samuel.w@example.com / reveza123');
+  console.log('Login Rezza:  uma.s@example.org / rezza123');
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
     process.exit(0);
   })
-  .catch((error) => {
-    console.error('❌ Erro no seed:', error);
+  .catch(async (error) => {
+    console.error('Erro no seed:', error);
+    await prisma.$disconnect();
     process.exit(1);
   });

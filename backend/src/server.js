@@ -10,6 +10,7 @@ const userRoutes = require('./routes/user.routes');
 const clientRoutes = require('./routes/client.routes');
 const quoteRoutes = require('./routes/quote.routes');
 const productRoutes = require('./routes/product.routes');
+const companyRoutes = require('./routes/company.routes');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/companies', companyRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {

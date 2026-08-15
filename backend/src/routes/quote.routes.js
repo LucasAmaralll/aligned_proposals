@@ -1,6 +1,7 @@
 const express = require('express');
 const quoteController = require('../controllers/quote.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
+const { tenantMiddleware } = require('../middlewares/tenant.middleware');
 const { checkQuoteLimit } = require('../middlewares/permissions.middleware');
 
 const router = express.Router();
@@ -13,6 +14,7 @@ router.get('/pdf/public/:token', quoteController.getPDFByToken);
 
 // Rotas protegidas
 router.use(authMiddleware);
+router.use(tenantMiddleware);
 
 // Criar orçamento - verifica limite do plano
 router.post('/', checkQuoteLimit, quoteController.create);
