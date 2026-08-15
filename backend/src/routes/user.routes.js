@@ -5,7 +5,7 @@ const fs = require('fs');
 const userController = require('../controllers/user.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 const { tenantMiddleware } = require('../middlewares/tenant.middleware');
-const { canAccessDashboard } = require('../middlewares/permissions.middleware');
+const { requirePermission } = require('../middlewares/permission.middleware');
 
 const router = express.Router();
 
@@ -55,6 +55,6 @@ router.delete('/logo', userController.deleteLogo);
 router.delete('/account', userController.deleteAccount);
 
 // Rota de estatísticas requer permissão de dashboard
-router.get('/stats', canAccessDashboard, userController.getStats);
+router.get('/stats', requirePermission('dashboard.read'), userController.getStats);
 
 module.exports = router;

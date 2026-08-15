@@ -38,19 +38,26 @@ function dayKey(date) {
   return new Date(date).toLocaleDateString('en-CA');
 }
 
-async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId, commissionRate }) {
+async function getSalesDashboard({ companyId, unitFilter = {}, period, from, to, sellerId, commissionRate }) {
   const range = resolvePeriod(period, from, to);
   const dateFilter = { gte: range.from, lte: range.to };
-  const scope = {
+  const saleScope = {
     companyId,
     createdAt: dateFilter,
-    ...(unitId && unitId !== 'all' && { unitId }),
+    status: { not: 'cancelled' },
+    ...unitFilter,
     ...(sellerId && { sellerId }),
+  };
+  const aftersaleScope = {
+    companyId,
+    createdAt: dateFilter,
+    ...unitFilter,
+    ...(sellerId && { sale: { sellerId } }),
   };
 
   const [sales, returns, exchanges, clientsCount, pendingQuotes] = await Promise.all([
     prisma.sale.findMany({
-      where: scope,
+      where: saleScope,
       include: {
         seller: { select: { id: true, name: true } },
         unit: { select: { id: true, name: true } },
@@ -60,11 +67,11 @@ async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId
       orderBy: { createdAt: 'asc' },
     }),
     prisma.saleReturn.findMany({
-      where: scope,
+      where: aftersaleScope,
       select: { refundAmount: true },
     }),
     prisma.exchange.findMany({
-      where: scope,
+      where: aftersaleScope,
       select: { difference: true },
     }),
     prisma.client.count({ where: { companyId, status: 1 } }),
@@ -90,6 +97,7 @@ async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId
   const byUnitMap = {};
   const bySellerMap = {};
   const byPaymentMap = {};
+  const byChannelMap = {};
   const bySkuMap = {};
 
   for (const sale of sales) {
@@ -111,6 +119,9 @@ async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId
     }
     bySellerMap[sellerKey].total = money(bySellerMap[sellerKey].total + parseFloat(sale.total || 0));
     bySellerMap[sellerKey].count += 1;
+
+    const channel = sale.channel || 'retail';
+    byChannelMap[channel] = money((byChannelMap[channel] || 0) + parseFloat(sale.total || 0));
 
     for (const payment of sale.payments) {
       byPaymentMap[payment.method] = money(
@@ -162,6 +173,7 @@ async function getSalesDashboard({ companyId, unitId, period, from, to, sellerId
     byUnit: Object.values(byUnitMap).sort((a, b) => b.total - a.total),
     bySeller: Object.values(bySellerMap).sort((a, b) => b.total - a.total),
     byPayment: Object.entries(byPaymentMap).map(([method, total]) => ({ method, total })),
+    byChannel: Object.entries(byChannelMap).map(([channel, total]) => ({ channel, total })),
     topProducts: Object.values(bySkuMap)
       .sort((a, b) => b.total - a.total)
       .slice(0, 8),

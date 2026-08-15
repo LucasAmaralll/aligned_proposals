@@ -1,9 +1,11 @@
 const { randomUUID } = require('crypto');
 const prisma = require('../lib/prisma');
+const { assertUnitsAccess } = require('../lib/access');
 
 const DIRECTION = {
   entry: 1,
   return: 1,
+  sale_cancel: 1,
   exchange_in: 1,
   transfer_in: 1,
   production: 1,
@@ -14,6 +16,7 @@ const DIRECTION = {
 };
 
 const TYPES = new Set([...Object.keys(DIRECTION), 'adjust']);
+const HTTP_TYPES = new Set(['entry', 'exit', 'adjust']);
 
 class StockError extends Error {
   constructor(message, status = 400) {
@@ -131,6 +134,7 @@ async function applyMovement(
 async function transfer({
   companyId,
   userId,
+  user,
   variantId,
   fromUnitId,
   toUnitId,
@@ -139,6 +143,9 @@ async function transfer({
 }) {
   if (fromUnitId === toUnitId) {
     throw new StockError('Selecione unidades diferentes para transferir');
+  }
+  if (user) {
+    assertUnitsAccess(user, [fromUnitId, toUnitId]);
   }
 
   const reference = randomUUID();
@@ -188,7 +195,7 @@ const variantSearch = (search) =>
       }
     : {};
 
-async function listStock({ companyId, unitId, search, limit }) {
+async function listStock({ companyId, unitId, unitIds, search, limit }) {
   const take = Math.min(Math.max(Number(limit) || 80, 1), 200);
 
   if (unitId) {
@@ -228,6 +235,7 @@ async function listStock({ companyId, unitId, search, limit }) {
   return prisma.stock.findMany({
     where: {
       companyId,
+      ...(unitIds?.length && { unitId: { in: unitIds } }),
       variant: {
         active: true,
         product: { active: true },
@@ -255,4 +263,5 @@ module.exports = {
   transfer,
   listStock,
   TYPES,
+  HTTP_TYPES,
 };

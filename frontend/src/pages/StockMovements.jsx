@@ -14,6 +14,7 @@ const TYPE_LABELS = {
   transfer_in: 'Transferência (entrada)',
   transfer_out: 'Transferência (saída)',
   sale: 'Venda',
+  sale_cancel: 'Cancelamento de venda',
   return: 'Devolução',
   exchange_in: 'Troca (entrada)',
   exchange_out: 'Troca (saída)',

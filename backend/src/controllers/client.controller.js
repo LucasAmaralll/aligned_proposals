@@ -143,7 +143,8 @@ class ClientController {
         (sum, quote) => sum + parseFloat(quote.total || 0),
         0
       );
-      const salesTotal = client.sales.reduce(
+      const completedSales = client.sales.filter((sale) => sale.status !== 'cancelled');
+      const salesTotal = completedSales.reduce(
         (sum, sale) => sum + parseFloat(sale.total || 0),
         0
       );
@@ -153,7 +154,7 @@ class ClientController {
         history: {
           quotesCount: client.quotes.length,
           quotesTotal,
-          salesCount: client.sales.length,
+          salesCount: completedSales.length,
           salesTotal,
         },
       });

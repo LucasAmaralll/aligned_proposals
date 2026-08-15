@@ -1,7 +1,14 @@
 const prisma = require('../lib/prisma');
-const { applyMovement, transfer, listStock, StockError } = require('../services/stock.service');
+const { applyMovement, transfer, listStock, StockError, HTTP_TYPES } = require('../services/stock.service');
+const { hasPermission } = require('../lib/roles');
+const {
+  assertUnitAccess,
+  resolveListUnitFilter,
+  handleAccess,
+} = require('../lib/access');
 
 function handleStockError(res, error) {
+  if (handleAccess(res, error)) return;
   if (error instanceof StockError) {
     return res.status(error.status).json({ error: error.message });
   }
@@ -9,15 +16,30 @@ function handleStockError(res, error) {
   return res.status(500).json({ error: 'Erro ao processar estoque' });
 }
 
+function stockListArgs(user, requestedUnitId, { search, limit } = {}) {
+  const filter = resolveListUnitFilter(user, requestedUnitId);
+  if (typeof filter.unitId === 'string') {
+    return { unitId: filter.unitId, search, limit };
+  }
+  if (filter.unitId?.in?.length === 1) {
+    return { unitId: filter.unitId.in[0], search, limit };
+  }
+  if (filter.unitId?.in) {
+    return { unitIds: filter.unitId.in, search, limit };
+  }
+  return { search, limit };
+}
+
 class StockController {
   async list(req, res) {
     try {
-      const unitId = req.query.unitId || req.headers['x-unit-id'];
+      const requested = req.query.unitId || req.headers['x-unit-id'];
       const stocks = await listStock({
         companyId: req.companyId,
-        unitId: unitId || undefined,
-        search: req.query.search || undefined,
-        limit: req.query.limit,
+        ...stockListArgs(req.user, requested, {
+          search: req.query.search || undefined,
+          limit: req.query.limit,
+        }),
       });
       return res.json({ stocks });
     } catch (error) {
@@ -27,10 +49,12 @@ class StockController {
 
   async movements(req, res) {
     try {
-      const { unitId, variantId, type, page = 1, limit = 30 } = req.query;
+      const requested = req.query.unitId || req.headers['x-unit-id'];
+      const { variantId, type, page = 1, limit = 30 } = req.query;
+      const unitFilter = resolveListUnitFilter(req.user, requested);
       const where = {
         companyId: req.companyId,
-        ...(unitId && { unitId }),
+        ...unitFilter,
         ...(variantId && { variantId }),
         ...(type && { type }),
       };
@@ -74,6 +98,16 @@ class StockController {
       if (!type || !variantId || !resolvedUnitId) {
         return res.status(400).json({ error: 'Tipo, variação e unidade são obrigatórios' });
       }
+      if (!HTTP_TYPES.has(type)) {
+        return res.status(400).json({ error: 'Tipo de movimentação inválido' });
+      }
+
+      const permission = type === 'adjust' ? 'stock.adjust' : 'stock.manage';
+      if (!hasPermission(req.user, permission)) {
+        return res.status(403).json({ error: 'Sem permissão para esta ação' });
+      }
+
+      assertUnitAccess(req.user, resolvedUnitId);
 
       const result = await applyMovement({
         companyId: req.companyId,
@@ -101,6 +135,7 @@ class StockController {
       const result = await transfer({
         companyId: req.companyId,
         userId: req.userId,
+        user: req.user,
         variantId,
         fromUnitId,
         toUnitId,

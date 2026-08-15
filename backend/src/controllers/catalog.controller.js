@@ -1,17 +1,30 @@
 const prisma = require('../lib/prisma');
+const { catalogStockWhere } = require('../lib/access');
 
-const variantInclude = {
-  stocks: {
-    include: { unit: { select: { id: true, name: true, type: true } } },
-  },
-};
+function productInclude(user) {
+  const stockWhere = catalogStockWhere(user);
+  return {
+    category: true,
+    variants: {
+      orderBy: [{ color: 'asc' }, { size: 'asc' }],
+      include: {
+        stocks: {
+          ...(stockWhere && { where: stockWhere }),
+          include: { unit: { select: { id: true, name: true, type: true } } },
+        },
+      },
+    },
+  };
+}
 
-const productInclude = {
-  category: true,
-  variants: {
-    orderBy: [{ color: 'asc' }, { size: 'asc' }],
-    include: variantInclude,
-  },
+const variantInclude = (user) => {
+  const stockWhere = catalogStockWhere(user);
+  return {
+    stocks: {
+      ...(stockWhere && { where: stockWhere }),
+      include: { unit: { select: { id: true, name: true, type: true } } },
+    },
+  };
 };
 
 class CatalogController {
@@ -29,7 +42,7 @@ class CatalogController {
             ],
           }),
         },
-        include: productInclude,
+        include: productInclude(req.user),
         orderBy: { name: 'asc' },
         take: Number(limit),
       });
@@ -44,7 +57,7 @@ class CatalogController {
     try {
       const product = await prisma.product.findFirst({
         where: { id: req.params.id, companyId: req.companyId },
-        include: productInclude,
+        include: productInclude(req.user),
       });
       if (!product) {
         return res.status(404).json({ error: 'Produto não encontrado' });
@@ -83,7 +96,7 @@ class CatalogController {
           userId: req.userId,
           companyId: req.companyId,
         },
-        include: productInclude,
+        include: productInclude(req.user),
       });
       return res.status(201).json(product);
     } catch (error) {
@@ -113,7 +126,7 @@ class CatalogController {
           ...(categoryId !== undefined && { categoryId: categoryId || null }),
           ...(active !== undefined && { active: Boolean(active) }),
         },
-        include: productInclude,
+        include: productInclude(req.user),
       });
       return res.json(product);
     } catch (error) {
@@ -155,7 +168,7 @@ class CatalogController {
           productId: product.id,
           companyId: req.companyId,
         },
-        include: variantInclude,
+        include: variantInclude(req.user),
       });
       return res.status(201).json(variant);
     } catch (error) {
@@ -193,7 +206,7 @@ class CatalogController {
           ...(cest !== undefined && { cest: cest || null }),
           ...(active !== undefined && { active: Boolean(active) }),
         },
-        include: variantInclude,
+        include: variantInclude(req.user),
       });
       return res.json(variant);
     } catch (error) {

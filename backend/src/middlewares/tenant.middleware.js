@@ -2,6 +2,12 @@
  * Isolamento por empresa.
  * companyId vem sempre do usuário autenticado — nunca do body.
  */
+const {
+  AccessError,
+  collectRequestUnitIds,
+  assertUnitAccess,
+} = require('../lib/access');
+
 const tenantMiddleware = (req, res, next) => {
   if (!req.companyId) {
     return res.status(403).json({
@@ -19,23 +25,24 @@ const tenantMiddleware = (req, res, next) => {
 };
 
 const requireUnitAccess = (req, res, next) => {
-  const unitId = req.body?.unitId || req.query?.unitId || req.headers['x-unit-id'];
+  try {
+    const ids = collectRequestUnitIds(req);
+    for (const unitId of ids) {
+      assertUnitAccess(req.user, unitId);
+    }
 
-  if (!unitId) {
+    const primary = req.body?.unitId || req.query?.unitId || req.headers['x-unit-id'];
+    if (primary && primary !== 'all') {
+      req.unitId = primary;
+    }
+
     return next();
+  } catch (error) {
+    if (error instanceof AccessError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    return next(error);
   }
-
-  const allowed = (req.user?.units || []).some((unit) => unit.id === unitId);
-  const isAdmin = req.user?.role?.name === 'admin';
-
-  if (!allowed && !isAdmin) {
-    return res.status(403).json({
-      error: 'Sem acesso a esta unidade',
-    });
-  }
-
-  req.unitId = unitId;
-  next();
 };
 
 module.exports = { tenantMiddleware, requireUnitAccess };
