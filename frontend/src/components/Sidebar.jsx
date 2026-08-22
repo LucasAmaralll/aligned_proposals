@@ -26,6 +26,7 @@ import {
   Bars3Icon,
   UsersIcon,
   WalletIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -42,6 +43,7 @@ const Sidebar = () => {
       label: 'Operação',
       items: [
         { name: isSeller ? 'Meu desempenho' : 'Dashboard', icon: HomeIcon, path: '/dashboard' },
+        { name: 'Relatórios', icon: ChartBarIcon, path: '/reports' },
         { name: 'Vendas', icon: ShoppingBagIcon, path: '/sales' },
         { name: 'Caixa', icon: WalletIcon, path: '/cash', permission: 'cash.read' },
         { name: 'Envios', icon: TruckIcon, path: '/shipments' },

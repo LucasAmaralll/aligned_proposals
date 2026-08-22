@@ -35,6 +35,7 @@ import SaleReturn from './pages/SaleReturn';
 import SaleExchange from './pages/SaleExchange';
 import Expenses from './pages/Expenses';
 import Cash from './pages/Cash';
+import Reports from './pages/Reports';
 import Team from './pages/Team';
 import Shipments from './pages/Shipments';
 import ShipmentForm from './pages/ShipmentForm';
@@ -211,6 +212,15 @@ function App() {
                   <RequirePermission permission="cash.read">
                     <Cash />
                   </RequirePermission>
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="/reports"
+              element={
+                <PrivateRoute>
+                  <Reports />
                 </PrivateRoute>
               }
             />

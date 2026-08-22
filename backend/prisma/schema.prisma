@@ -454,6 +454,9 @@ model Sale {
 
   @@unique([companyId, number])
   @@index([companyId, createdAt])
+  @@index([companyId, unitId, createdAt])
+  @@index([companyId, sellerId, createdAt])
+  @@index([companyId, status, createdAt])
   @@index([unitId])
   @@index([clientId])
   @@index([channel])
@@ -548,6 +551,7 @@ model SaleItem {
   exchangeItems ExchangeItem[]
 
   @@index([saleId])
+  @@index([variantId])
   @@map("sale_items")
 }
 
@@ -562,6 +566,7 @@ model SalePayment {
   createdAt DateTime @default(now())
 
   @@index([saleId])
+  @@index([method])
   @@map("sale_payments")
 }
 
@@ -594,6 +599,7 @@ model SaleReturn {
   @@unique([companyId, number])
   @@index([saleId])
   @@index([cashSessionId])
+  @@index([companyId, unitId, createdAt])
   @@map("returns")
 }
 
@@ -649,6 +655,7 @@ model Exchange {
   @@unique([companyId, number])
   @@index([saleId])
   @@index([cashSessionId])
+  @@index([companyId, unitId, createdAt])
   @@map("exchanges")
 }
 
@@ -763,6 +770,7 @@ model CashSession {
   @@index([companyId, status])
   @@index([unitId, status])
   @@index([registerId, status])
+  @@index([companyId, unitId, openedAt])
   @@map("cash_sessions")
 }
 
