@@ -137,6 +137,11 @@ const Cash = () => {
     ? num(num(countedCash) - num(totals.expectedCash))
     : 0;
 
+  const historyTotals = (item) => {
+    if (item.status === 'closed') return item.totals || null;
+    return session?.id === item.id ? totals : null;
+  };
+
   return (
     <Layout title="Caixa">
       <div className="max-w-6xl mx-auto">
@@ -286,26 +291,49 @@ const Cash = () => {
                 <thead className="bg-gray-50 dark:bg-zinc-900 text-left text-gray-500 dark:text-gray-400">
                   <tr>
                     <th className="px-4 py-2 font-medium">Abertura</th>
+                    <th className="px-4 py-2 font-medium">Fechamento</th>
+                    <th className="px-4 py-2 font-medium">Abriu</th>
+                    <th className="px-4 py-2 font-medium">Fechou</th>
                     <th className="px-4 py-2 font-medium">Status</th>
+                    <th className="px-4 py-2 font-medium">Vendas</th>
                     <th className="px-4 py-2 font-medium">Esperado</th>
                     <th className="px-4 py-2 font-medium">Contado</th>
                     <th className="px-4 py-2 font-medium">Diferença</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-t border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 cursor-pointer"
-                      onClick={() => openClosed(item.id)}
-                    >
-                      <td className="px-4 py-2">{formatDateTime(item.openedAt)}</td>
-                      <td className="px-4 py-2">{item.status === 'open' ? 'Aberto' : 'Fechado'}</td>
-                      <td className="px-4 py-2">{item.expectedCash != null ? formatCurrency(item.expectedCash) : '—'}</td>
-                      <td className="px-4 py-2">{item.countedCash != null ? formatCurrency(item.countedCash) : '—'}</td>
-                      <td className="px-4 py-2">{item.difference != null ? formatCurrency(item.difference) : '—'}</td>
-                    </tr>
-                  ))}
+                  {history.map((item) => {
+                    const rowTotals = historyTotals(item);
+                    const salesTotal = rowTotals?.salesTotal;
+                    const salesCount = rowTotals?.salesCount;
+                    return (
+                      <tr
+                        key={item.id}
+                        className="border-t border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 cursor-pointer"
+                        onClick={() => openClosed(item.id)}
+                      >
+                        <td className="px-4 py-2">{formatDateTime(item.openedAt)}</td>
+                        <td className="px-4 py-2">{item.closedAt ? formatDateTime(item.closedAt) : '—'}</td>
+                        <td className="px-4 py-2">{item.openedBy?.name || '—'}</td>
+                        <td className="px-4 py-2">{item.closedBy?.name || '—'}</td>
+                        <td className="px-4 py-2">{item.status === 'open' ? 'Aberto' : 'Fechado'}</td>
+                        <td className="px-4 py-2">
+                          {salesTotal == null
+                            ? '—'
+                            : `${formatCurrency(salesTotal)}${salesCount ? ` · ${salesCount}` : ''}`}
+                        </td>
+                        <td className="px-4 py-2">
+                          {item.expectedCash != null
+                            ? formatCurrency(item.expectedCash)
+                            : rowTotals
+                            ? formatCurrency(rowTotals.expectedCash)
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-2">{item.countedCash != null ? formatCurrency(item.countedCash) : '—'}</td>
+                        <td className="px-4 py-2">{item.difference != null ? formatCurrency(item.difference) : '—'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -320,9 +348,38 @@ const Cash = () => {
       >
         {closedView && (
           <div className="space-y-3">
-            <Row label="Esperado" value={formatCurrency(closedView.totals?.expectedCash)} />
-            <Row label="Contado" value={formatCurrency(closedView.totals?.countedCash ?? closedView.session?.countedCash)} />
-            <Row label="Diferença" value={formatCurrency(closedView.totals?.difference ?? closedView.session?.difference)} />
+            <Row label="Abriu" value={`${closedView.session?.openedBy?.name || '—'} · ${formatDateTime(closedView.session?.openedAt)}`} />
+            <Row
+              label="Fechou"
+              value={
+                closedView.session?.closedAt
+                  ? `${closedView.session?.closedBy?.name || '—'} · ${formatDateTime(closedView.session.closedAt)}`
+                  : 'Ainda aberto'
+              }
+            />
+            <div className="pt-2 border-t border-gray-100 dark:border-zinc-700 space-y-1">
+              <Row label="Abertura em dinheiro" value={formatCurrency(closedView.totals?.openingAmount)} />
+              <Row
+                label="Vendas na sessão"
+                value={`${closedView.totals?.salesCount || 0} · ${formatCurrency(closedView.totals?.salesTotal)}`}
+              />
+              <Row label="Suprimentos" value={formatCurrency(closedView.totals?.supplies)} />
+              <Row label="Sangrias" value={formatCurrency(closedView.totals?.bleeds)} />
+              <Row label="Estornos (refund)" value={formatCurrency(closedView.totals?.refunds)} />
+            </div>
+            <div className="pt-2 border-t border-gray-100 dark:border-zinc-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Vendas por forma de pagamento</p>
+              <MethodList map={closedView.totals?.salesByMethod} />
+            </div>
+            <div className="pt-2 border-t border-gray-100 dark:border-zinc-700 space-y-1">
+              <Row label="Esperado em dinheiro" value={formatCurrency(closedView.totals?.expectedCash)} />
+              <Row label="Contado" value={formatCurrency(closedView.totals?.countedCash ?? closedView.session?.countedCash)} />
+              <Row label="Diferença" value={formatCurrency(closedView.totals?.difference ?? closedView.session?.difference)} />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              O esperado em dinheiro conta abertura, vendas em dinheiro, trocas em dinheiro e suprimentos, menos sangrias e
+              estornos. Pix, débito e crédito entram nas vendas da sessão, mas não na gaveta.
+            </p>
             {closedView.frozen && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Estes valores foram gravados no fechamento e não são recalculados.
