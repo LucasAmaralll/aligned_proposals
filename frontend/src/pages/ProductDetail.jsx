@@ -90,11 +90,11 @@ const ProductDetail = () => {
 
     try {
       setSaving(true);
-      const response = await api.put(`/catalog/products/${id}`, {
+      await api.put(`/catalog/products/${id}`, {
         ...formData,
         categoryId: formData.categoryId || null,
       });
-      setProduct(response.data);
+      navigate('/products');
     } catch (error) {
       alert(error.response?.data?.error || 'Erro ao salvar produto');
     } finally {
