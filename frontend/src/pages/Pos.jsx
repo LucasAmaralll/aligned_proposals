@@ -30,7 +30,7 @@ const Pos = () => {
   const [clientQuery, setClientQuery] = useState('');
   const [client, setClient] = useState(null);
   const [channel, setChannel] = useState('retail');
-  const [saleDiscount, setSaleDiscount] = useState('0');
+  const [discountPercent, setDiscountPercent] = useState('0');
   const [payments, setPayments] = useState([{ method: 'pix', amount: '' }]);
   const [notes, setNotes] = useState('');
   const [ship, setShip] = useState(false);
@@ -49,12 +49,11 @@ const Pos = () => {
     const subtotal = money(
       cart.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
     );
-    const itemsDiscount = money(cart.reduce((sum, item) => sum + money(item.discount), 0));
-    const extraDiscount = money(saleDiscount);
-    const discount = money(itemsDiscount + extraDiscount);
+    const percent = Math.min(100, Math.max(0, parseFloat(discountPercent) || 0));
+    const discount = money((subtotal * percent) / 100);
     const total = money(Math.max(0, subtotal - discount));
-    return { subtotal, discount, total };
-  }, [cart, saleDiscount]);
+    return { subtotal, percent, discount, total };
+  }, [cart, discountPercent]);
 
   useEffect(() => {
     setPayments((current) => {
@@ -130,7 +129,6 @@ const Pos = () => {
           color: row.variant?.color,
           unitPrice: parseFloat(row.variant?.salePrice || 0),
           quantity: 1,
-          discount: 0,
           available,
         },
       ];
@@ -141,7 +139,7 @@ const Pos = () => {
     setCart((current) =>
       current.map((item) => {
         if (item.variantId !== variantId) return item;
-        const next = { ...item, [field]: field === 'quantity' || field === 'discount' || field === 'unitPrice' ? parseFloat(value || 0) : value };
+        const next = { ...item, [field]: field === 'quantity' || field === 'unitPrice' ? parseFloat(value || 0) : value };
         if (field === 'quantity' && next.quantity > item.available) {
           alert(`Estoque insuficiente. Saldo: ${item.available}`);
           return item;
@@ -204,7 +202,7 @@ const Pos = () => {
         clientId: client?.id || null,
         channel,
         origin: 'store',
-        discount: money(saleDiscount),
+        discount: totals.discount,
         notes: notes || undefined,
         ship,
         shipping: ship ? shipping : undefined,
@@ -212,7 +210,6 @@ const Pos = () => {
           variantId: item.variantId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discount: item.discount,
         })),
         payments: payments
           .filter((payment) => money(payment.amount) > 0)
@@ -308,7 +305,7 @@ const Pos = () => {
                 <div className="space-y-3">
                   {cart.map((item) => (
                     <div key={item.variantId} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-4">
+                      <div className="col-span-5">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{item.productName}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{item.sku}</p>
                       </div>
@@ -332,18 +329,8 @@ const Pos = () => {
                           onChange={(e) => updateCart(item.variantId, 'unitPrice', e.target.value)}
                         />
                       </div>
-                      <div className="col-span-2">
-                        <Input
-                          label="Desc."
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.discount}
-                          onChange={(e) => updateCart(item.variantId, 'discount', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-1 text-sm font-medium text-gray-900 dark:text-white pb-2">
-                        {formatCurrency(item.quantity * item.unitPrice - item.discount)}
+                      <div className="col-span-2 text-sm font-medium text-gray-900 dark:text-white pb-2">
+                        {formatCurrency(item.quantity * item.unitPrice)}
                       </div>
                       <button
                         type="button"
@@ -436,12 +423,13 @@ const Pos = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
               <Input
-                label="Desconto da venda"
+                label="Desconto da venda (%)"
                 type="number"
                 min="0"
+                max="100"
                 step="0.01"
-                value={saleDiscount}
-                onChange={(e) => setSaleDiscount(e.target.value)}
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(e.target.value)}
               />
               <div className="text-sm space-y-1">
                 <div className="flex justify-between text-gray-600 dark:text-gray-300">
@@ -449,8 +437,8 @@ const Pos = () => {
                   <span>{formatCurrency(totals.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600 dark:text-gray-300">
-                  <span>Descontos</span>
-                  <span>{formatCurrency(totals.discount)}</span>
+                  <span>Desconto ({totals.percent}%)</span>
+                  <span>- {formatCurrency(totals.discount)}</span>
                 </div>
                 <div className="flex justify-between text-lg font-semibold text-gray-900 dark:text-white">
                   <span>Total</span>
